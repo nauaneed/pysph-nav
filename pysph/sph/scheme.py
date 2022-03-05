@@ -1409,7 +1409,7 @@ class GSPHScheme(Scheme):
         particle_arrays = dict([(p.name, p) for p in particles])
         dummy = get_particle_array_gasd(name='junk')
         props = (list(dummy.properties.keys()) +
-                 'px py pz ux uy uz vx vy vz wx wy wz'.split())
+                 'px py pz ux uy uz vx vy vz wx wy wz am'.split())
 
         output_props = dummy.output_property_arrays
         for fluid in self.fluids:

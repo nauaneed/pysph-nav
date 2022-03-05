@@ -78,27 +78,27 @@ class GSPHGradients(Equation):
              d_vx, d_vy, d_vz, d_wx, d_wy, d_wz, d_p, d_u, d_v, d_w,
              s_idx, s_p, s_u, s_v, s_w, s_rho, s_m,
              DWI):
-        rj1 = 1.0/s_rho[s_idx]
+        rj1 = 1.0 / s_rho[s_idx]
         pji = s_p[s_idx] - d_p[d_idx]
         uji = s_u[s_idx] - d_u[d_idx]
         vji = s_v[s_idx] - d_v[d_idx]
         wji = s_w[s_idx] - d_w[d_idx]
-        tmp = rj1*s_m[s_idx]*pji
-        d_px[d_idx] += tmp*DWI[0]
-        d_py[d_idx] += tmp*DWI[1]
-        d_pz[d_idx] += tmp*DWI[2]
-        tmp = rj1*s_m[s_idx]*uji
-        d_ux[d_idx] += tmp*DWI[0]
-        d_uy[d_idx] += tmp*DWI[1]
-        d_uz[d_idx] += tmp*DWI[2]
-        tmp = rj1*s_m[s_idx]*vji
-        d_vx[d_idx] += tmp*DWI[0]
-        d_vy[d_idx] += tmp*DWI[1]
-        d_vz[d_idx] += tmp*DWI[2]
-        tmp = rj1*s_m[s_idx]*wji
-        d_wx[d_idx] += tmp*DWI[0]
-        d_wy[d_idx] += tmp*DWI[1]
-        d_wz[d_idx] += tmp*DWI[2]
+        tmp = rj1 * s_m[s_idx] * pji
+        d_px[d_idx] += tmp * DWI[0]
+        d_py[d_idx] += tmp * DWI[1]
+        d_pz[d_idx] += tmp * DWI[2]
+        tmp = rj1 * s_m[s_idx] * uji
+        d_ux[d_idx] += tmp * DWI[0]
+        d_uy[d_idx] += tmp * DWI[1]
+        d_uz[d_idx] += tmp * DWI[2]
+        tmp = rj1 * s_m[s_idx] * vji
+        d_vx[d_idx] += tmp * DWI[0]
+        d_vy[d_idx] += tmp * DWI[1]
+        d_vz[d_idx] += tmp * DWI[2]
+        tmp = rj1 * s_m[s_idx] * wji
+        d_wx[d_idx] += tmp * DWI[0]
+        d_wy[d_idx] += tmp * DWI[1]
+        d_wz[d_idx] += tmp * DWI[2]
 
 
 class GSPHUpdateGhostProps(Equation):
@@ -106,6 +106,7 @@ class GSPHUpdateGhostProps(Equation):
     from real particle to ghost particles
 
     """
+
     def __init__(self, dest, sources=None):
         super(GSPHUpdateGhostProps, self).__init__(dest, sources)
         assert GHOST_TAG == 2
@@ -159,6 +160,7 @@ class GSPHAcceleration(Equation):
     Murante et al.
 
     """
+
     def __init__(self, dest, sources, g1=0.0, g2=0.0,
                  monotonicity=0, rsolver=Exact,
                  interpolation=Linear, interface_zero=True, hybrid=False,
@@ -216,11 +218,12 @@ class GSPHAcceleration(Equation):
     def _get_helpers_(self):
         return HELPERS + [monotonicity_min, sgn]
 
-    def initialize(self, d_idx, d_au, d_av, d_aw, d_ae):
+    def initialize(self, d_idx, d_au, d_av, d_aw, d_ae, d_am):
         d_au[d_idx] = 0.0
         d_av[d_idx] = 0.0
         d_aw[d_idx] = 0.0
         d_ae[d_idx] = 0.0
+        d_am[d_idx] = 0.0
 
     def loop(self, d_idx, d_m, d_h, d_rho, d_cs, d_div, d_p, d_e, d_grhox,
              d_grhoy, d_grhoz, d_u, d_v, d_w, d_px, d_py, d_pz, d_ux, d_uy,
@@ -228,8 +231,9 @@ class GSPHAcceleration(Equation):
              s_idx, s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
              s_grhoy, s_grhoz, s_u, s_v, s_w, s_px, s_py, s_pz,
              s_ux, s_uy, s_uz, s_vx, s_vy, s_vz, s_wx, s_wy, s_wz,
-             XIJ, DWIJ, DWI, DWJ, RIJ, RHOIJ, EPS, dt, t):
-        blending_factor = exp(-self.blend_alpha*t/self.tf)
+             XIJ, DWIJ, DWI, DWJ, RIJ, RHOIJ, EPS, dt, t, d_am, VIJ,
+             RHOIJ1):
+        blending_factor = exp(-self.blend_alpha * t / self.tf)
         g1 = self.g1
         g2 = self.g2
         hi = d_h[d_idx]
@@ -239,22 +243,23 @@ class GSPHAcceleration(Equation):
             eij[0] = 0.0
             eij[1] = 0.0
             eij[2] = 0.0
-            sij = 1.0/(RIJ + EPS)
+            sij = 1.0 / (RIJ + EPS)
         else:
-            eij[0] = XIJ[0]/RIJ
-            eij[1] = XIJ[1]/RIJ
-            eij[2] = XIJ[2]/RIJ
-            sij = 1.0/RIJ
+            eij[0] = XIJ[0] / RIJ
+            eij[1] = XIJ[1] / RIJ
+            eij[2] = XIJ[2] / RIJ
+            sij = 1.0 / RIJ
 
-        vl = s_u[s_idx]*eij[0] + s_v[s_idx]*eij[1] + s_w[s_idx]*eij[2]
-        vr = d_u[d_idx]*eij[0] + d_v[d_idx]*eij[1] + d_w[d_idx]*eij[2]
+        vl = s_u[s_idx] * eij[0] + s_v[s_idx] * eij[1] + s_w[s_idx] * eij[2]
+        vr = d_u[d_idx] * eij[0] + d_v[d_idx] * eij[1] + d_w[d_idx] * eij[2]
 
-        Hi = g1*hi*d_cs[d_idx] + g2*hi*hi*(abs(d_div[d_idx]) - d_div[d_idx])
+        Hi = g1 * hi * d_cs[d_idx] + g2 * hi * hi * (
+                    abs(d_div[d_idx]) - d_div[d_idx])
 
-        grhoi_dot_eij = (d_grhox[d_idx]*eij[0] + d_grhoy[d_idx]*eij[1]
-                         + d_grhoz[d_idx]*eij[2])
-        grhoj_dot_eij = (s_grhox[s_idx]*eij[0] + s_grhoy[s_idx]*eij[1]
-                         + s_grhoz[s_idx]*eij[2])
+        grhoi_dot_eij = (d_grhox[d_idx] * eij[0] + d_grhoy[d_idx] * eij[1]
+                         + d_grhoz[d_idx] * eij[2])
+        grhoj_dot_eij = (s_grhox[s_idx] * eij[0] + s_grhoy[s_idx] * eij[1]
+                         + s_grhoz[s_idx] * eij[2])
 
         sp_vol = declare('matrix(3)')
         self.interpolate(hi, hj, d_rho[d_idx], s_rho[s_idx], RIJ,
@@ -263,25 +268,27 @@ class GSPHAcceleration(Equation):
         vij_j = sp_vol[1]
         sstar = sp_vol[2]
         # Gradients in the local coordinate system
-        rsi = (d_grhox[d_idx]*eij[0] + d_grhoy[d_idx]*eij[1] +
-               d_grhoz[d_idx]*eij[2])
-        psi = (d_px[d_idx]*eij[0] + d_py[d_idx]*eij[1] + d_pz[d_idx]*eij[2])
-        vsi = (eij[0]*eij[0]*d_ux[d_idx] +
-               eij[0]*eij[1]*(d_uy[d_idx] + d_vx[d_idx]) +
-               eij[0]*eij[2]*(d_uz[d_idx] + d_wx[d_idx]) +
-               eij[1]*eij[1]*d_vy[d_idx] +
-               eij[1]*eij[2]*(d_vz[d_idx] + d_wy[d_idx]) +
-               eij[2]*eij[2]*d_wz[d_idx])
+        rsi = (d_grhox[d_idx] * eij[0] + d_grhoy[d_idx] * eij[1] +
+               d_grhoz[d_idx] * eij[2])
+        psi = (d_px[d_idx] * eij[0] + d_py[d_idx] * eij[1] + d_pz[d_idx] * eij[
+            2])
+        vsi = (eij[0] * eij[0] * d_ux[d_idx] +
+               eij[0] * eij[1] * (d_uy[d_idx] + d_vx[d_idx]) +
+               eij[0] * eij[2] * (d_uz[d_idx] + d_wx[d_idx]) +
+               eij[1] * eij[1] * d_vy[d_idx] +
+               eij[1] * eij[2] * (d_vz[d_idx] + d_wy[d_idx]) +
+               eij[2] * eij[2] * d_wz[d_idx])
 
-        rsj = (s_grhox[s_idx]*eij[0] + s_grhoy[s_idx]*eij[1] +
-               s_grhoz[s_idx]*eij[2])
-        psj = (s_px[s_idx]*eij[0] + s_py[s_idx]*eij[1] + s_pz[s_idx]*eij[2])
-        vsj = (eij[0]*eij[0]*s_ux[s_idx] +
-               eij[0]*eij[1]*(s_uy[s_idx] + s_vx[s_idx]) +
-               eij[0]*eij[2]*(s_uz[s_idx] + s_wx[s_idx]) +
-               eij[1]*eij[1]*s_vy[s_idx] +
-               eij[1]*eij[2]*(s_vz[s_idx] + s_wy[s_idx]) +
-               eij[2]*eij[2]*s_wz[s_idx])
+        rsj = (s_grhox[s_idx] * eij[0] + s_grhoy[s_idx] * eij[1] +
+               s_grhoz[s_idx] * eij[2])
+        psj = (s_px[s_idx] * eij[0] + s_py[s_idx] * eij[1] + s_pz[s_idx] * eij[
+            2])
+        vsj = (eij[0] * eij[0] * s_ux[s_idx] +
+               eij[0] * eij[1] * (s_uy[s_idx] + s_vx[s_idx]) +
+               eij[0] * eij[2] * (s_uz[s_idx] + s_wx[s_idx]) +
+               eij[1] * eij[1] * s_vy[s_idx] +
+               eij[1] * eij[2] * (s_vz[s_idx] + s_wy[s_idx]) +
+               eij[2] * eij[2] * s_wz[s_idx])
 
         csi = d_cs[d_idx]
         csj = s_cs[s_idx]
@@ -304,7 +311,7 @@ class GSPHAcceleration(Equation):
                 vsj = 0.
 
             # default to first order near a shock
-            if (min(csi, csj) < 3.0*(vl - vr)):
+            if (min(csi, csj) < 3.0 * (vl - vr)):
                 rsi = 0.
                 rsj = 0.
                 psi = 0.
@@ -325,9 +332,9 @@ class GSPHAcceleration(Equation):
             delvp = 2 * delv - qiju
 
             # corrected values for i
-            rsi = monotonicity_min(qijr, delr, delrp)/RIJ
-            psi = monotonicity_min(qijp, delp, delpp)/RIJ
-            vsi = monotonicity_min(qiju, delv, delvp)/RIJ
+            rsi = monotonicity_min(qijr, delr, delrp) / RIJ
+            psi = monotonicity_min(qijp, delp, delpp) / RIJ
+            vsi = monotonicity_min(qiju, delv, delvp) / RIJ
 
             delr = rsj * RIJ
             delrp = 2 * delr - qijr
@@ -337,9 +344,9 @@ class GSPHAcceleration(Equation):
             delvp = 2 * delv - qiju
 
             # corrected values for j
-            rsj = monotonicity_min(qijr, delr, delrp)/RIJ
-            psj = monotonicity_min(qijp, delp, delpp)/RIJ
-            vsj = monotonicity_min(qiju, delv, delvp)/RIJ
+            rsj = monotonicity_min(qijr, delr, delrp) / RIJ
+            psj = monotonicity_min(qijp, delp, delpp) / RIJ
+            vsj = monotonicity_min(qiju, delv, delvp) / RIJ
         elif self.monotonicity == 2 and RIJ < 1e-14:  # IwIn algorithm
             rsi = 0.0
             rsj = 0.0
@@ -352,8 +359,8 @@ class GSPHAcceleration(Equation):
         sstar *= 2.0
 
         # left and right density
-        rhol = rhoj + 0.5 * rsj * RIJ * (1.0 - csj*dt*sij + sstar)
-        rhor = rhoi - 0.5 * rsi * RIJ * (1.0 - csi*dt*sij + sstar)
+        rhol = rhoj + 0.5 * rsj * RIJ * (1.0 - csj * dt * sij + sstar)
+        rhor = rhoi - 0.5 * rsi * RIJ * (1.0 - csi * dt * sij + sstar)
 
         # corrected density
         if rhol < 0:
@@ -362,8 +369,8 @@ class GSPHAcceleration(Equation):
             rhor = rhoi
 
         # left and right pressure
-        pl = pj + 0.5 * psj * RIJ * (1.0 - csj*dt*sij + sstar)
-        pr = pi - 0.5 * psi * RIJ * (1.0 - csi*dt*sij + sstar)
+        pl = pj + 0.5 * psj * RIJ * (1.0 - csj * dt * sij + sstar)
+        pr = pi - 0.5 * psi * RIJ * (1.0 - csi * dt * sij + sstar)
 
         # corrected pressure
         if pl < 0:
@@ -372,8 +379,8 @@ class GSPHAcceleration(Equation):
             pr = pi
 
         # left and right velocity
-        ul = vl + 0.5 * vsj * RIJ * (1.0 - csj*dt*sij + sstar)
-        ur = vr - 0.5 * vsi * RIJ * (1.0 - csi*dt*sij + sstar)
+        ul = vl + 0.5 * vsj * RIJ * (1.0 - csj * dt * sij + sstar)
+        ur = vr - 0.5 * vsi * RIJ * (1.0 - csi * dt * sij + sstar)
 
         # Intermediate state from the Riemann solver
         result = declare('matrix(2)')
@@ -397,12 +404,33 @@ class GSPHAcceleration(Equation):
 
         # three dimensional velocity (70)
         vstar = declare('matrix(3)')
-        vstar[0] = ustar*eij[0]
-        vstar[1] = ustar*eij[1]
-        vstar[2] = ustar*eij[2]
+        vstar[0] = ustar * eij[0]
+        vstar[1] = ustar * eij[1]
+        vstar[2] = ustar * eij[2]
+
+        if RIJ > 1e-8:
+            vijdotrij = (VIJ[0] * XIJ[0] +
+                         VIJ[1] * XIJ[1] +
+                         VIJ[2] * XIJ[2]) / RIJ
+            Kij = (DWI[0] * XIJ[0] +
+                   DWI[1] * XIJ[1] +
+                   DWI[2] * XIJ[2]) / RIJ
+        else:
+            vijdotrij = 0.0
+            Kij = 0.0
+
+        alphaij = 1.0
+        vsigp = max(0, csi + csj - 3 * vijdotrij)
+        mj = s_m[s_idx]
+        mi = d_m[d_idx]
+        mij = 0.5 * (mi + mj)
+        Lij = abs(pi - pj) / (pi + pj)
+
+        Qij = mij * RHOIJ1 * alphaij * vsigp * Lij
+        d_am[d_idx] += Qij * (mi - mj) * Kij
+
 
         # velocity accelerations
-        mj = s_m[s_idx]
         d_au[d_idx] += -mj * pstar * (vij_i * DWI[0] + vij_j * DWJ[0])
         d_av[d_idx] += -mj * pstar * (vij_i * DWI[1] + vij_j * DWJ[1])
         d_aw[d_idx] += -mj * pstar * (vij_i * DWI[2] + vij_j * DWJ[2])
@@ -412,8 +440,13 @@ class GSPHAcceleration(Equation):
         # be added in the integrator.
         vstardotdwi = vstar[0]*DWI[0] + vstar[1]*DWI[1] + vstar[2]*DWI[2]
         vstardotdwj = vstar[0]*DWJ[0] + vstar[1]*DWJ[1] + vstar[2]*DWJ[2]
+        vjdotvj = s_u[s_idx] * s_u[s_idx] + \
+                  s_v[s_idx] * s_v[s_idx] + \
+                  s_w[s_idx] * s_w[s_idx]
+        aediss = Qij * ((mi - mj) / mi) * Kij * (0.5* vjdotvj * s_e[s_idx])
+
         d_ae[d_idx] += -mj * pstar * (vij_i * vstardotdwi +
-                                      vij_j * vstardotdwj)
+                                      vij_j * vstardotdwj) + aediss
 
         # artificial thermal conduction terms
         if self.thermal_conduction:
@@ -425,6 +458,15 @@ class GSPHAcceleration(Equation):
 
             d_ae[d_idx] += mj*Hij*(XIJ[0]*DWIJ[0] + XIJ[1]*DWIJ[1] +
                                    XIJ[2]*DWIJ[2])
+
+    def post_loop(self, d_am, d_m, d_au, d_u, d_av, d_v, d_aw, d_w, d_idx):
+        fact = - d_am[d_idx] / d_m[d_idx]
+        d_au[d_idx] += fact * d_u[d_idx]
+        d_av[d_idx] += fact * d_v[d_idx]
+        d_aw[d_idx] += fact * d_w[d_idx]
+
+
+
 
     def interpolate(self, hi=0.0, hj=0.0, rhoi=0.0, rhoj=0.0,
                     sij=0.0, gri_eij=0.0, grj_eij=0.0,
@@ -467,11 +509,11 @@ class GSPHAcceleration(Equation):
         to include this term
 
         """
-        Vi = 1./rhoi
-        Vj = 1./rhoj
+        Vi = 1. / rhoi
+        Vj = 1. / rhoj
 
-        Vip = -1./(rhoi*rhoi) * gri_eij
-        Vjp = -1./(rhoj*rhoj) * grj_eij
+        Vip = -1. / (rhoi * rhoi) * gri_eij
+        Vjp = -1. / (rhoj * rhoj) * grj_eij
 
         aij, bij, cij, dij, hij, vij, vij_i, vij_j = declare('double', 8)
         hij = 0.5 * (hi + hj)
@@ -479,8 +521,8 @@ class GSPHAcceleration(Equation):
 
         # simplest delta or point interpolation
         if self.interpolation == 0:
-            vij_i2 = 1./(rhoi * rhoi)
-            vij_j2 = 1./(rhoj * rhoj)
+            vij_i2 = 1. / (rhoi * rhoi)
+            vij_j2 = 1. / (rhoj * rhoj)
 
         # linear interpolation
         elif self.interpolation == 1:
@@ -488,7 +530,7 @@ class GSPHAcceleration(Equation):
             if sij < 1e-8:
                 cij = 0.0
             else:
-                cij = (Vi - Vj)/sij
+                cij = (Vi - Vj) / sij
 
             dij = 0.5 * (Vi + Vj)
 
@@ -499,7 +541,7 @@ class GSPHAcceleration(Equation):
             # variable smoothing lengths
             if not self.interface_zero:
                 vij = 0.5 * (vij_i2 + vij_j2)
-                sstar = 0.5 * hij*hij * cij*dij/vij
+                sstar = 0.5 * hij * hij * cij * dij / vij
 
         # cubic spline interpolation
         elif self.interpolation == 2:
@@ -507,32 +549,33 @@ class GSPHAcceleration(Equation):
                 aij = bij = cij = 0.0
                 dij = 0.5 * (Vi + Vj)
             else:
-                aij = -2.0 * (Vi - Vj)/(sij*sij*sij) + (Vip + Vjp)/(sij*sij)
-                bij = 0.5 * (Vip - Vjp)/sij
-                cij = 1.5 * (Vi - Vj)/sij - 0.25 * (Vip + Vjp)
-                dij = 0.5 * (Vi + Vj) - 0.125*(Vip - Vjp)*sij
+                aij = -2.0 * (Vi - Vj) / (sij * sij * sij) + (Vip + Vjp) / (
+                            sij * sij)
+                bij = 0.5 * (Vip - Vjp) / sij
+                cij = 1.5 * (Vi - Vj) / sij - 0.25 * (Vip + Vjp)
+                dij = 0.5 * (Vi + Vj) - 0.125 * (Vip - Vjp) * sij
 
-            hi2 = hi*hi
-            hj2 = hj*hj
-            hi4 = hi2*hi2
-            hj4 = hj2*hj2
-            hi6 = hi4*hi2
-            hj6 = hj4*hj2
+            hi2 = hi * hi
+            hj2 = hj * hj
+            hi4 = hi2 * hi2
+            hj4 = hj2 * hj2
+            hi6 = hi4 * hi2
+            hj6 = hj4 * hj2
 
-            vij_i2 = ((15.0)/(64.0)*hi6 * aij*aij +
-                      (3.0)/(16.0) * hi4 * (2*aij*cij + bij*bij) +
-                      0.25*hi2*(2*bij*dij + cij*cij) + dij * dij)
+            vij_i2 = ((15.0) / (64.0) * hi6 * aij * aij +
+                      (3.0) / (16.0) * hi4 * (2 * aij * cij + bij * bij) +
+                      0.25 * hi2 * (2 * bij * dij + cij * cij) + dij * dij)
 
-            vij_j2 = ((15.0)/(64.0)*hj6 * aij*aij +
-                      (3.0)/(16.0) * hj4 * (2*aij*cij + bij*bij) +
-                      0.25*hj2 * (2*bij*dij + cij*cij) + dij * dij)
-            hij2 = hij*hij
-            hij4 = hij2*hij2
+            vij_j2 = ((15.0) / (64.0) * hj6 * aij * aij +
+                      (3.0) / (16.0) * hj4 * (2 * aij * cij + bij * bij) +
+                      0.25 * hj2 * (2 * bij * dij + cij * cij) + dij * dij)
+            hij2 = hij * hij
+            hij4 = hij2 * hij2
             if not self.interface_zero:
-                vij = 0.5*(vij_i2 + vij_j2)
-                sstar = ((15.0/32.0)*hij4*hij2*aij*bij +
-                         (3.0/8.0)*hij4*(aij*dij + bij*cij) +
-                         0.5*hij2*cij*dij)/vij
+                vij = 0.5 * (vij_i2 + vij_j2)
+                sstar = ((15.0 / 32.0) * hij4 * hij2 * aij * bij +
+                         (3.0 / 8.0) * hij4 * (aij * dij + bij * cij) +
+                         0.5 * hij2 * cij * dij) / vij
         else:
             printf(b"%s", b"Unknown interpolation type")
 

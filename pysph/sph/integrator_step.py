@@ -431,11 +431,12 @@ class GasDFluidStep(IntegratorStep):
 class GSPHStep(IntegratorStep):
 
     def stage1(self, d_idx, d_x, d_y, d_z, d_u, d_v, d_w, d_e,
-               d_au, d_av, d_aw, d_ae, dt):
+               d_au, d_av, d_aw, d_ae, dt, d_am, d_m):
         dtb2 = dt*0.5
         ustar = d_u[d_idx] + dtb2*d_au[d_idx]
         vstar = d_v[d_idx] + dtb2*d_av[d_idx]
         wstar = d_w[d_idx] + dtb2*d_aw[d_idx]
+
 
         d_u[d_idx] += dt*d_au[d_idx]
         d_v[d_idx] += dt*d_av[d_idx]
@@ -444,6 +445,8 @@ class GSPHStep(IntegratorStep):
                           - ustar*d_au[d_idx]
                           - vstar*d_av[d_idx]
                           - wstar*d_aw[d_idx])
+
+        d_m[d_idx] += dt*d_am[d_idx]
         d_x[d_idx] += dt*ustar
         d_y[d_idx] += dt*vstar
         d_z[d_idx] += dt*wstar
