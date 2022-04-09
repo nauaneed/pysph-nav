@@ -43,9 +43,9 @@ jobs:
           pip install pyopencl cupy-cuda116
           python setup.py develop
           nvidia-smi
-      #- name: Cleanup build folder
-        #run: |
-          #ls -la ./
-          #rm -rf ./* || true
-          #rm -rf ./.??* || true
-          #ls -la ./
+      - name: Cleanup build folder
+        run: |
+          ls -la ./
+          rm -rf ./* || true
+          rm -rf ./.??* || true
+          ls -la ./
