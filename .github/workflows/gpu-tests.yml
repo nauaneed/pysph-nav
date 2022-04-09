@@ -1,4 +1,4 @@
-name: ZOLTAN/MPI Tests
+name: gpu-tests
 
 on:
   push:
@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [self-hosted]
+        python-version: [3.9.10]
 
 
     runs-on: ${{ matrix.os }}
@@ -22,6 +23,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Try
+      - name: Create and activate venv
         run: |
+          python -m venv venv-${{ runner.python-version }}-{{ github.sha }}
+          source venv-${{ runner.python-version }}-{{ github.sha }}/bin/activate
+          wget https://github.com/pypr/pysph/releases/download/1.0b1/full-requirements.txt
+          pip install -r requirements.txt
+          nvidia-smi
+      - name: Install dependencies
+        run: |
+          wget https://github.com/pypr/pysph/releases/download/1.0b1/full-requirements.txt
+          pip install -r requirements.txt
           nvidia-smi
