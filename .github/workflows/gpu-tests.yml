@@ -23,26 +23,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Create venv
+      - name: Create venv and install dependencies
         run: |
           pyenv shell ${{ matrix.python-version }}
           python -m venv venv-${{ matrix.python-version }}
           python -V
-      - name: Install dependencies
-        run: |
-          pyenv shell ${{ matrix.python-version }}
-          source venv-${{ matrix.python-version }}/bin/activate
           pip install --upgrade pip
           pip install wheel
           pip install numpy cython
           pip install mpi4py cyarray
           pip install --no-build-isolation https://github.com/pypr/pyzoltan/zipball/master
-          python -m pip install -r requirements.txt
-          python -m pip install -r requirements-test.txt
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
           pip install pycuda
           pip install pyopencl cupy-cuda116
           python setup.py develop
+          pip freeze
+      - name: Run tests
+        run: |
           nvidia-smi
+          pyenv shell ${{ matrix.python-version }}
+          source venv-${{ matrix.python-version }}/bin/activate
+          pip freeze
+          pytest -v
       - name: Cleanup build folder
         run: |
           ls -la ./
