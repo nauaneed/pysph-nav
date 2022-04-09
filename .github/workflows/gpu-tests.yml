@@ -1,7 +1,7 @@
 name: ZOLTAN/MPI Tests
 
 on:
-  pull_request:
+  push:
   schedule:
     # Run test at 0400 UTC on day 1 of every month to create auto-generated
     # code afresh and cache it.
