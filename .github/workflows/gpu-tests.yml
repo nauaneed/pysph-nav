@@ -13,7 +13,8 @@ jobs:
       matrix:
         os: [self-hosted]
         python-version: [3.9.10, 3.8.10]
-
+    env:
+      PYOPENCL_CTX: '0'
 
     runs-on: ${{ matrix.os }}
 
@@ -31,7 +32,7 @@ jobs:
           pip install --upgrade pip
           pip install wheel
           pip install numpy cython
-          pip install mpi4py cyarray
+          pip install mpi4py cyarray six
           pip install --no-build-isolation https://github.com/pypr/pyzoltan/zipball/master
           pip install -r requirements.txt
           pip install -r requirements-test.txt
