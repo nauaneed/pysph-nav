@@ -19,24 +19,26 @@ jobs:
 
     defaults:
       run:
-        shell: bash -l {0}
+        shell: zsh -l {0}
 
     steps:
       - uses: actions/checkout@v2
-      - name: Create and activate venv
+      - name: Create venv
         run: |
           pyenv shell ${{ matrix.python-version }}
           python -m venv venv-${{ matrix.python-version }}
-          source venv-${{ matrix.python-version }}/bin/activate
-          wget https://github.com/pypr/pysph/releases/download/1.0b1/full-requirements.txt
+          python -V
       - name: Install dependencies
         run: |
+          pyenv shell ${{ matrix.python-version }}
+          source venv-${{ matrix.python-version }}/bin/activate
           python -V
+          wget https://github.com/pypr/pysph/releases/download/1.0b1/full-requirements.txt
           python -m pip install -r full-requirements.txt
           nvidia-smi
-      - name: Cleanup build folder
-        run: |
-          ls -la ./
-          rm -rf ./* || true
-          rm -rf ./.??* || true
-          ls -la ./
+      #- name: Cleanup build folder
+        #run: |
+          #ls -la ./
+          #rm -rf ./* || true
+          #rm -rf ./.??* || true
+          #ls -la ./
