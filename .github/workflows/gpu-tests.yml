@@ -32,9 +32,16 @@ jobs:
         run: |
           pyenv shell ${{ matrix.python-version }}
           source venv-${{ matrix.python-version }}/bin/activate
-          python -V
-          wget https://github.com/pypr/pysph/releases/download/1.0b1/full-requirements.txt
-          python -m pip install -r full-requirements.txt
+          pip install --upgrade pip
+          pip install wheel
+          pip install numpy cython
+          pip install mpi4py cyarray
+          pip install --no-build-isolation https://github.com/pypr/pyzoltan/zipball/master
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-test.txt
+          pip install pycuda
+          pip install pyopencl cupy-cuda116
+          python setup.py develop
           nvidia-smi
       #- name: Cleanup build folder
         #run: |
