@@ -9,26 +9,20 @@ on:
 
 jobs:
   tests:
+    runs-on: self-hosted
     strategy:
       matrix:
-        os: [self-hosted]
         python-version: [3.8.10, 3.9.10]
     env:
       PYOPENCL_CTX: '0'
 
-    runs-on: ${{ matrix.os }}
-
-    defaults:
-      run:
-        shell: zsh -l {0}
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Create venv and install dependencies
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies and run tests
         run: |
-          pyenv shell ${{ matrix.python-version }}
-          python -m venv venv-${{ matrix.python-version }}
-          source venv-${{ matrix.python-version }}/bin/activate
           python -V
           pip install --upgrade pip
           pip install wheel
@@ -37,15 +31,8 @@ jobs:
           pip install --no-build-isolation https://github.com/pypr/pyzoltan/zipball/master
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-          pip install pycuda
-          pip install pyopencl cupy-cuda116
+          pip install pycuda pyopencl cupy-cuda116
           python setup.py develop
-          pip freeze
-      - name: Run tests
-        run: |
-          nvidia-smi
-          pyenv shell ${{ matrix.python-version }}
-          source venv-${{ matrix.python-version }}/bin/activate
           pytest -v
       - name: Cleanup build folder
         run: |
