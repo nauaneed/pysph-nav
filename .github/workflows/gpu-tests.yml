@@ -9,12 +9,13 @@ on:
 
 jobs:
   tests:
-    runs-on: self-hosted
+    env:
+      PYOPENCL_CTX: '0'
+
+    runs-on: gpu
     strategy:
       matrix:
         python-version: [3.8.10, 3.9.10]
-    env:
-      PYOPENCL_CTX: '0'
 
     steps:
       - uses: actions/checkout@v3
@@ -22,19 +23,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Info
-        run: |
-          python -V
-          nvidia-smi
-          clinfo
+      - name: GPU Info
+        run: clinfo && nvidia-smi
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
           pip install wheel
-          pip install numpy cython
-          pip install mpi4py cyarray six
+          pip install numpy cython six
+          pip install --no-build-isolation mpi4py 
+          pip install --no-build-isolation h5py
+          pip install https://github.com/pypr/cyarray/zipball/master
           pip install --no-build-isolation https://github.com/pypr/pyzoltan/zipball/master
+          pip install https://github.com/pypr/compyle/zipball/master
           pip install -r requirements.txt
           pip install -r requirements-test.txt
           pip install pycuda pyopencl cupy-cuda116
@@ -47,7 +47,6 @@ jobs:
 
       - name: Cleanup build folder
         run: |
-          pwd
           ls -lah ./
           rm -rf ./* || true
           rm -rf ./.??* || true
