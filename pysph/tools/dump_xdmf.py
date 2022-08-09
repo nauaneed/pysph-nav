@@ -47,7 +47,7 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "--relative-path", action="store_true",
+        "--refer-absolute-path", action="store_false", dest='relative_path',
         help="use relative path(s) to reference heavy data in the generated"
              " xdmf file"
     )
@@ -68,6 +68,7 @@ def main(argv=None):
 
 
 def run(options):
+    Path(options.outdir).mkdir(parents=True, exist_ok=True)
     for ifile in options.inputfile:
         if Path(ifile).is_dir():
             files = get_files(ifile, endswith='hdf5')
