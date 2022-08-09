@@ -28,18 +28,18 @@ class TestDumpXDMF(unittest.TestCase):
         dump(hdf5file, [pa], {})
 
         try:
+            odir = str(Path(tmp_dir).parent)
             # Generate XDMF for dumped hdf5 file.
-            dump_xdmf([hdf5file, '--outdir', tmp_dir])
+            dump_xdmf([hdf5file, '--outdir', odir])
 
             # Retrieve data by reading xdmf file
-            xdmffile = Path(hdf5file).with_suffix('.xdmf')
+            xdmffile = str(Path(odir) / 'test.xdmf')
             array_data = self.retrieve_arrays_from_xdmf(xdmffile)
 
             # Check if retrieved data and generated data is same.
             assert np.allclose(self.rho, array_data['rho'], atol=1e-14), \
                 "Expected %s,\n got %s" % (self.rho, array_data['rho'])
         finally:
-            print('here')
             shutil.rmtree(tmp_dir)
 
     def retrieve_arrays_from_xdmf(self, xdmffile):
