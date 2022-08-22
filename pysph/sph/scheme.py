@@ -1145,7 +1145,8 @@ class GSPHScheme(Scheme):
     def __init__(self, fluids, solids, dim, gamma, kernel_factor, g1=0.0,
                  g2=0.0, rsolver=2, interpolation=1, monotonicity=1,
                  interface_zero=True, hybrid=False, blend_alpha=5.0, tf=1.0,
-                 niter=20, tol=1e-6, has_ghosts=False):
+                 niter=20, tol=1e-6, has_ghosts=False,
+                 state_interpolation='original'):
         """
         Parameters
         ----------
@@ -1185,6 +1186,8 @@ class GSPHScheme(Scheme):
             Tolerance for iterative Riemann solvers.
         has_ghosts: bool
             if ghost particles (either mirror or periodic) is used
+        state_interpolation: str
+            Interpolation scheme for state variables.
         """
         self.fluids = fluids
         self.solids = solids
@@ -1204,6 +1207,8 @@ class GSPHScheme(Scheme):
         self.niter = niter
         self.tol = tol
         self.has_ghosts = has_ghosts
+        self.state_interpolation_choices = {'original', 'weno', 'teno'}
+        self.state_interpolation = state_interpolation
 
     def add_user_options(self, group):
         group.add_argument(
@@ -1217,9 +1222,17 @@ class GSPHScheme(Scheme):
             help="Interpolation algorithm to use."
         )
         group.add_argument(
+            "--state-interpolation", action="store",
+            dest="state_interpolation", default=None,
+            choices=self.state_interpolation_choices,
+            help="Interpolation scheme for state variables: "
+                 "%s." % self.state_interpolation_choices
+        )
+        group.add_argument(
             "--monotonicity", action="store", type=int, dest="monotonicity",
             default=None,
-            help="Monotonicity algorithm to use."
+            help="Monotonicity algorithm to use if using original GSPH state "
+                 "interpolation."
         )
         group.add_argument(
             "--g1", action="store", type=float, dest="g1",
@@ -1255,7 +1268,7 @@ class GSPHScheme(Scheme):
     def consume_user_options(self, options):
         vars = ['gamma', 'g1', 'g2', 'rsolver', 'interpolation',
                 'monotonicity', 'interface_zero', 'hybrid',
-                'blend_alpha']
+                'blend_alpha', 'state_interpolation']
         data = dict((var, self._smart_getattr(options, var))
                     for var in vars)
         self.configure(**data)
@@ -1311,7 +1324,8 @@ class GSPHScheme(Scheme):
         )
         from pysph.sph.gas_dynamics.boundary_equations import WallBoundary
         from pysph.sph.gas_dynamics.gsph import (
-            GSPHGradients, GSPHAcceleration, GSPHUpdateGhostProps
+            GSPHGradients, GSPHAcceleration, GSPHUpdateGhostProps,
+            GSPHAccelerationENO
         )
         equations = []
         # Find the optimal 'h'
@@ -1391,15 +1405,26 @@ class GSPHScheme(Scheme):
                 ))
 
         g4 = []
-        for fluid in self.fluids:
-            g4.append(GSPHAcceleration(
-                dest=fluid, sources=all_pa, g1=self.g1,
-                g2=self.g2, monotonicity=self.monotonicity,
-                rsolver=self.rsolver, interpolation=self.interpolation,
-                interface_zero=self.interface_zero,
-                hybrid=self.hybrid, blend_alpha=self.blend_alpha,
-                gamma=self.gamma, niter=self.niter, tol=self.tol
-            ))
+        if self.state_interpolation == 'original':
+            for fluid in self.fluids:
+                g4.append(GSPHAcceleration(
+                    dest=fluid, sources=all_pa, g1=self.g1,
+                    g2=self.g2, monotonicity=self.monotonicity,
+                    rsolver=self.rsolver, interpolation=self.interpolation,
+                    interface_zero=self.interface_zero,
+                    hybrid=self.hybrid, blend_alpha=self.blend_alpha,
+                    gamma=self.gamma, niter=self.niter, tol=self.tol
+                ))
+        else:
+            for fluid in self.fluids:
+                g4.append(GSPHAccelerationENO(
+                    dest=fluid, sources=all_pa, g1=self.g1,
+                    g2=self.g2, monotonicity=0,
+                    rsolver=self.rsolver, interpolation=0,
+                    interface_zero=True,
+                    hybrid=False, blend_alpha=self.blend_alpha,
+                    gamma=self.gamma, niter=self.niter, tol=self.tol
+                ))
         equations.append(Group(equations=g4))
         return equations
 
