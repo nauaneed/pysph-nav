@@ -192,6 +192,100 @@ cdef class LinkedListNNPS(NNPS):
             self._sort_neighbors(
                 &nbrs.data[orig_length], nbrs.length - orig_length, s_gid
             )
+    cdef unsigned int find_nearest_particle(self, double x, double y, double z,
+                                    double h) nogil:
+        """Low level, high-performance non-gil method to find just the nearest
+        neighbour. This requires that `set_context()` be called beforehand.
+        This method does not reset the neighbors array before it appends the
+        neighbors to it.
+
+        """
+        # Number of cells
+        cdef int n_cells = self.n_cells
+        cdef int dim = self.dim
+
+        # cell shifts
+        cdef int* shifts = self.cell_shifts.data
+
+        # Source data arrays
+        cdef double* s_x = self.src.x.data
+        cdef double* s_y = self.src.y.data
+        cdef double* s_z = self.src.z.data
+        cdef double* s_h = self.src.h.data
+        cdef unsigned int* s_gid = self.src.gid.data
+
+        cdef unsigned int* head = self.head.data
+        cdef unsigned int* next = self.next.data
+
+        # minimum values for the particle distribution
+        cdef double* xmin = self.xmin.data
+
+        # cell size and radius
+        cdef double radius_scale = self.radius_scale
+        cdef double cell_size = self.cell_size
+
+        # locals
+        cdef size_t indexj
+        cdef double xij2, exij2
+        cdef double hi2, hj2
+        cdef int ierr, nnbrs
+        cdef unsigned int _next, nearest_particle_index
+        cdef int ix, iy, iz
+
+        # get the un-flattened index for the destination particle with
+        # respect to the minimum
+        cdef int _cid_x, _cid_y, _cid_z
+        find_cell_id_raw(
+            x - xmin[0], y - xmin[1], z - xmin[2],
+            cell_size, &_cid_x, &_cid_y, &_cid_z
+        )
+
+        cdef int cid_x, cid_y, cid_z
+        cdef long cell_index
+        cid_x = cid_y = cid_z = 0
+
+        # gather search radius
+        hi2 = radius_scale * h
+        hi2 *= hi2 * 0.5
+
+        # Begin search through neighboring cells
+        exij2 = 999999.9*hi2
+        while (exij2 > hi2):
+            hi2 *= 2.0 # increase search distance
+            for ix in range(3):
+                for iy in range(3):
+                    for iz in range(3):
+                        cid_x = _cid_x + shifts[ix]
+                        cid_y = _cid_y + shifts[iy]
+                        cid_z = _cid_z + shifts[iz]
+
+                        # Only consider valid cell indices
+                        cell_index = self._get_valid_cell_index(
+                            cid_x, cid_y, cid_z,
+                            self.ncells_per_dim.data, dim, n_cells
+                        )
+                        if cell_index > -1:
+
+                            # get the first particle and begin iteration
+                            _next = head[ cell_index ]
+                            while( _next != UINT_MAX ):
+                                hj2 = radius_scale * s_h[_next]
+                                hj2 *= hj2
+
+                                xij2 = norm2( s_x[_next]-x,
+                                              s_y[_next]-y,
+                                              s_z[_next]-z )
+
+                                # select neighbor
+                                if (((xij2 < hi2) or (xij2 < hj2))
+                                    ) and xij2<exij2:
+                                    exij2 = xij2
+                                    nearest_particle_index=_next
+
+                                # get the 'next' particle in this cell
+                                _next = next[_next]
+
+        return nearest_particle_index
 
     cpdef get_spatially_ordered_indices(self, int pa_index, LongArray indices):
         cdef UIntArray head = self.heads[pa_index]

@@ -307,6 +307,9 @@ cdef class NNPSBase:
 
     cdef void find_nearest_neighbors(self, size_t d_idx, UIntArray nbrs) nogil
 
+    cdef unsigned int find_nearest_particle(self, double x, double y, double z,
+                                    double h) nogil
+
     cpdef get_nearest_particles(self, int src_index, int dst_index,
                                 size_t d_idx, UIntArray nbrs)
     cpdef set_context(self, int src_index, int dst_index)

@@ -1413,6 +1413,9 @@ cdef class NNPSBase:
         # Implement this in the subclass to actually do something useful.
         pass
 
+    cdef unsigned int find_nearest_particle(self, double x, double y, double z,
+                                    double h) nogil:
+        pass
 
     cpdef get_nearest_particles(self, int src_index, int dst_index,
                                 size_t d_idx, UIntArray nbrs):
