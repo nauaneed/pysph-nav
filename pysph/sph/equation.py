@@ -769,6 +769,8 @@ class CythonGroup(Group):
                     args.remove('self')
                 if 'SPH_KERNEL' in args:
                     args[args.index('SPH_KERNEL')] = 'self.kernel'
+                if 'NNPS' in args:
+                    args[args.index('NNPS')] = 'self.nnps'
                 if kind == 'reduce':
                     args = ['dst.array', 't', 'dt']
                 call_args = ', '.join(args)

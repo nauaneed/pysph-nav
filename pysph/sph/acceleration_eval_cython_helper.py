@@ -215,6 +215,7 @@ class AccelerationEvalCythonHelper(object):
         self.known_types['SPH_KERNEL'] = KnownType(
             object.kernel.__class__.__name__
         )
+        self.known_types['NNPS'] = KnownType("NNPS")
         headers.append(object.all_group.get_equation_wrappers(
             self.known_types
         ))
