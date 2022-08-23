@@ -542,7 +542,8 @@ class GSPHAcceleration(Equation):
 
 
 class GSPHAccelerationENO(GSPHAcceleration):
-    """Class to implement the GSPH acclerations.
+    """Class to implement the GSPH acclerations with Essentially Non Ocillatory
+    Reconstructions.
     """
 
     def loop(self, d_idx, d_m, d_h, d_rho, d_cs, d_div, d_p, d_e, d_grhox,
@@ -551,7 +552,8 @@ class GSPHAccelerationENO(GSPHAcceleration):
              s_idx, s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
              s_grhoy, s_grhoz, s_u, s_v, s_w, s_px, s_py, s_pz,
              s_ux, s_uy, s_uz, s_vx, s_vy, s_vz, s_wx, s_wy, s_wz,
-             XIJ, DWIJ, DWI, DWJ, RIJ, RHOIJ, EPS, dt, t):
+             XIJ, DWIJ, DWI, DWJ, RIJ, RHOIJ, EPS, dt, t, d_x, d_y, d_z,
+             s_x, s_y, s_z, NNPS):
         blending_factor = exp(-self.blend_alpha * t / self.tf)
         g1 = self.g1
         g2 = self.g2
@@ -615,6 +617,26 @@ class GSPHAccelerationENO(GSPHAcceleration):
         rhoj = s_rho[s_idx]
         pi = d_p[d_idx]
         pj = s_p[s_idx]
+
+        # Reconstruction Start
+        ip = declare('int')
+        pidx = declare('unsigned int')
+        grsi, gpsi, gvsi, grsj, gpsj, gvsj = declare('matrix(6)', 6)  # grs
+        # is read as 'g'radient of 'r'ho in local coordinate system 's'.
+
+        for ip in range(6):
+            # Reconstruction-1: Phantom Points
+            # For x_{i-j} where j = -2 to 3,
+            # ip = i - j + 2 so that index is positive
+            px = d_x[d_idx] + (ip - 2) * (s_x[s_idx] - d_x[d_idx])
+            py = d_y[d_idx] + (ip - 2) * (s_y[s_idx] - d_y[d_idx])
+            pz = d_z[d_idx] + (ip - 2) * (s_z[s_idx] - d_z[d_idx])
+
+            # Reconstruction-2: Find the nearest particle to the phantom point
+            pidx = NNPS.find_nearest_particle(px, py, pz, hi)
+
+            # Reconstruction-3: Find the properties at phantom points
+
 
         # Input to the riemann solver
         sstar *= 2.0

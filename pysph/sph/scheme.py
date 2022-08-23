@@ -1423,7 +1423,8 @@ class GSPHScheme(Scheme):
                     rsolver=self.rsolver, interpolation=0,
                     interface_zero=True,
                     hybrid=False, blend_alpha=self.blend_alpha,
-                    gamma=self.gamma, niter=self.niter, tol=self.tol
+                    gamma=self.gamma, niter=self.niter, tol=self.tol,
+                    dim=self.dim
                 ))
         equations.append(Group(equations=g4))
         return equations
