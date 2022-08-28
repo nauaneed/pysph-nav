@@ -545,151 +545,190 @@ class GSPHAccelerationENO(GSPHAcceleration):
     """Class to implement the GSPH acclerations.
     """
 
-    def loop(self, d_idx, d_m, d_h, d_rho, d_cs, d_div, d_p, d_e, d_grhox,
+    def loop(self):
+        pass
+
+    def loop_all(self, d_idx, d_m, d_h, d_rho, d_cs, d_div, d_p, d_e, d_grhox,
              d_grhoy, d_grhoz, d_u, d_v, d_w, d_px, d_py, d_pz, d_ux, d_uy,
              d_uz, d_vx, d_vy, d_vz, d_wx, d_wy, d_wz, d_au, d_av, d_aw, d_ae,
-             s_idx, s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
+             s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
              s_grhoy, s_grhoz, s_u, s_v, s_w, s_px, s_py, s_pz,
              s_ux, s_uy, s_uz, s_vx, s_vy, s_vz, s_wx, s_wy, s_wz,
-             XIJ, DWIJ, DWI, DWJ, RIJ, RHOIJ, EPS, dt, t):
+             dt, t, d_x, d_y, d_z, s_x, s_y, s_z, SPH_KERNEL, NBRS, N_NBRS):
+
+        i = declare('int')
+        s_idx = declare('long')
+        xij = declare('matrix(3)')
+        eij = declare('matrix(3)')
+        sp_vol = declare('matrix(3)')
+        result = declare('matrix(2)')
+        vstar = declare('matrix(3)')
+        dwi, dwj, dwij = declare('matrix(3)', 3)
+        eps = 1e-8
         blending_factor = exp(-self.blend_alpha * t / self.tf)
         g1 = self.g1
         g2 = self.g2
         hi = d_h[d_idx]
-        hj = s_h[s_idx]
-        eij = declare('matrix(3)')
-        if RIJ < 1e-14:
-            eij[0] = 0.0
-            eij[1] = 0.0
-            eij[2] = 0.0
-            sij = 1.0 / (RIJ + EPS)
-        else:
-            eij[0] = XIJ[0] / RIJ
-            eij[1] = XIJ[1] / RIJ
-            eij[2] = XIJ[2] / RIJ
-            sij = 1.0 / RIJ
+        for i in range(N_NBRS):
+            s_idx = NBRS[i]
+            xij[0] = d_x[d_idx] - s_x[s_idx]
+            xij[1] = d_y[d_idx] - s_y[s_idx]
+            xij[2] = d_z[d_idx] - s_z[s_idx]
+            rij = sqrt(xij[0]*xij[0] + xij[1]*xij[1] + xij[2]*xij[2])
 
-        vl = s_u[s_idx] * eij[0] + s_v[s_idx] * eij[1] + s_w[s_idx] * eij[2]
-        vr = d_u[d_idx] * eij[0] + d_v[d_idx] * eij[1] + d_w[d_idx] * eij[2]
+            rhoij = 0.5 * (d_rho[d_idx] + s_rho[s_idx])
+            hj = s_h[s_idx]
 
-        Hi = g1 * hi * d_cs[d_idx] + g2 * hi * hi * (
-                    abs(d_div[d_idx]) - d_div[d_idx])
+            if rij < 1e-14:
+                eij[0] = 0.0
+                eij[1] = 0.0
+                eij[2] = 0.0
+                sij = 1.0 / (rij + eps)
+            else:
+                eij[0] = xij[0] / rij
+                eij[1] = xij[1] / rij
+                eij[2] = xij[2] / rij
+                sij = 1.0 / rij
 
-        grhoi_dot_eij = (d_grhox[d_idx] * eij[0] + d_grhoy[d_idx] * eij[1]
-                         + d_grhoz[d_idx] * eij[2])
-        grhoj_dot_eij = (s_grhox[s_idx] * eij[0] + s_grhoy[s_idx] * eij[1]
-                         + s_grhoz[s_idx] * eij[2])
+            SPH_KERNEL.gradient(xij, rij, hi, dwi)
+            SPH_KERNEL.gradient(xij, rij, hj, dwj)
+            SPH_KERNEL.gradient(xij, rij, 0.5 * (hi + hj), dwij)
 
-        sp_vol = declare('matrix(3)')
-        self.interpolate(hi, hj, d_rho[d_idx], s_rho[s_idx], RIJ,
-                         grhoi_dot_eij, grhoj_dot_eij, sp_vol)
-        vij_i = sp_vol[0]
-        vij_j = sp_vol[1]
-        sstar = sp_vol[2]
-        # Gradients in the local coordinate system
-        rsi = (d_grhox[d_idx] * eij[0] + d_grhoy[d_idx] * eij[1] +
-               d_grhoz[d_idx] * eij[2])
-        psi = (d_px[d_idx] * eij[0] + d_py[d_idx] * eij[1] + d_pz[d_idx] * eij[
-            2])
-        vsi = (eij[0] * eij[0] * d_ux[d_idx] +
-               eij[0] * eij[1] * (d_uy[d_idx] + d_vx[d_idx]) +
-               eij[0] * eij[2] * (d_uz[d_idx] + d_wx[d_idx]) +
-               eij[1] * eij[1] * d_vy[d_idx] +
-               eij[1] * eij[2] * (d_vz[d_idx] + d_wy[d_idx]) +
-               eij[2] * eij[2] * d_wz[d_idx])
+            vl = (s_u[s_idx] * eij[0] +
+                  s_v[s_idx] * eij[1] +
+                  s_w[s_idx] * eij[2])
+            vr = (d_u[d_idx] * eij[0] +
+                  d_v[d_idx] * eij[1] +
+                  d_w[d_idx] * eij[2])
 
-        rsj = (s_grhox[s_idx] * eij[0] + s_grhoy[s_idx] * eij[1] +
-               s_grhoz[s_idx] * eij[2])
-        psj = (s_px[s_idx] * eij[0] + s_py[s_idx] * eij[1] + s_pz[s_idx] * eij[
-            2])
-        vsj = (eij[0] * eij[0] * s_ux[s_idx] +
-               eij[0] * eij[1] * (s_uy[s_idx] + s_vx[s_idx]) +
-               eij[0] * eij[2] * (s_uz[s_idx] + s_wx[s_idx]) +
-               eij[1] * eij[1] * s_vy[s_idx] +
-               eij[1] * eij[2] * (s_vz[s_idx] + s_wy[s_idx]) +
-               eij[2] * eij[2] * s_wz[s_idx])
+            Hi = g1 * hi * d_cs[d_idx] + g2 * hi * hi * (
+                        abs(d_div[d_idx]) - d_div[d_idx])
 
-        csi = d_cs[d_idx]
-        csj = s_cs[s_idx]
-        rhoi = d_rho[d_idx]
-        rhoj = s_rho[s_idx]
-        pi = d_p[d_idx]
-        pj = s_p[s_idx]
+            grhoi_dot_eij = (d_grhox[d_idx] * eij[0] +
+                             d_grhoy[d_idx] * eij[1] +
+                             d_grhoz[d_idx] * eij[2])
+            grhoj_dot_eij = (s_grhox[s_idx] * eij[0] +
+                             s_grhoy[s_idx] * eij[1] +
+                             s_grhoz[s_idx] * eij[2])
 
-        # Input to the riemann solver
-        sstar *= 2.0
+            self.interpolate(hi, hj, d_rho[d_idx], s_rho[s_idx], rij,
+                             grhoi_dot_eij, grhoj_dot_eij, sp_vol)
+            vij_i = sp_vol[0]
+            vij_j = sp_vol[1]
+            sstar = sp_vol[2]
+            # Gradients in the local coordinate system
+            rsi = (d_grhox[d_idx] * eij[0] +
+                   d_grhoy[d_idx] * eij[1] +
+                   d_grhoz[d_idx] * eij[2])
+            psi = (d_px[d_idx] * eij[0] +
+                   d_py[d_idx] * eij[1] +
+                   d_pz[d_idx] * eij[2])
+            vsi = (eij[0] * eij[0] * d_ux[d_idx] +
+                   eij[0] * eij[1] * (d_uy[d_idx] + d_vx[d_idx]) +
+                   eij[0] * eij[2] * (d_uz[d_idx] + d_wx[d_idx]) +
+                   eij[1] * eij[1] * d_vy[d_idx] +
+                   eij[1] * eij[2] * (d_vz[d_idx] + d_wy[d_idx]) +
+                   eij[2] * eij[2] * d_wz[d_idx])
 
-        # left and right density
-        rhol = rhoj + 0.5 * rsj * RIJ * (1.0 - csj * dt * sij + sstar)
-        rhor = rhoi - 0.5 * rsi * RIJ * (1.0 - csi * dt * sij + sstar)
+            rsj = (s_grhox[s_idx] * eij[0] +
+                   s_grhoy[s_idx] * eij[1] +
+                   s_grhoz[s_idx] * eij[2])
+            psj = (s_px[s_idx] * eij[0] +
+                   s_py[s_idx] * eij[1] +
+                   s_pz[s_idx] * eij[2])
+            vsj = (eij[0] * eij[0] * s_ux[s_idx] +
+                   eij[0] * eij[1] * (s_uy[s_idx] + s_vx[s_idx]) +
+                   eij[0] * eij[2] * (s_uz[s_idx] + s_wx[s_idx]) +
+                   eij[1] * eij[1] * s_vy[s_idx] +
+                   eij[1] * eij[2] * (s_vz[s_idx] + s_wy[s_idx]) +
+                   eij[2] * eij[2] * s_wz[s_idx])
 
-        # corrected density
-        if rhol < 0:
-            rhol = rhoj
-        if rhor < 0:
-            rhor = rhoi
+            csi = d_cs[d_idx]
+            csj = s_cs[s_idx]
+            rhoi = d_rho[d_idx]
+            rhoj = s_rho[s_idx]
+            pi = d_p[d_idx]
+            pj = s_p[s_idx]
 
-        # left and right pressure
-        pl = pj + 0.5 * psj * RIJ * (1.0 - csj * dt * sij + sstar)
-        pr = pi - 0.5 * psi * RIJ * (1.0 - csi * dt * sij + sstar)
+            # Input to the riemann solver
 
-        # corrected pressure
-        if pl < 0:
-            pl = pj
-        if pr < 0:
-            pr = pi
+            # left and right density
+            rhol = rhoj + 0.5 * rsj * rij * (1.0 -
+                                             csj * dt * sij + 2.0 * sstar)
+            rhor = rhoi - 0.5 * rsi * rij * (1.0 -
+                                             csi * dt * sij + 2.0 * sstar)
 
-        # left and right velocity
-        ul = vl + 0.5 * vsj * RIJ * (1.0 - csj * dt * sij + sstar)
-        ur = vr - 0.5 * vsi * RIJ * (1.0 - csi * dt * sij + sstar)
+            # corrected density
+            if rhol < 0:
+                rhol = rhoj
+            if rhor < 0:
+                rhor = rhoi
 
-        # Intermediate state from the Riemann solver
-        result = declare('matrix(2)')
-        riemann_solve(
-            self.rsolver, rhol, rhor, pl, pr, ul, ur,
-            self.gamma, self.niter, self.tol, result
-        )
-        pstar = result[0]
-        ustar = result[1]
+            # left and right pressure
+            pl = pj + 0.5 * psj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
+            pr = pi - 0.5 * psi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
 
-        # blend of two intermediate states
-        if self.hybrid:
+            # corrected pressure
+            if pl < 0:
+                pl = pj
+            if pr < 0:
+                pr = pi
+
+            # left and right velocity
+            ul = vl + 0.5 * vsj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
+            ur = vr - 0.5 * vsi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
+
+            # Intermediate state from the Riemann solver
+
             riemann_solve(
-                10, rhoj, rhoi, pl, pr, vl, vr, self.gamma,
-                self.niter, self.tol, result
+                self.rsolver, rhol, rhor, pl, pr, ul, ur,
+                self.gamma, self.niter, self.tol, result
             )
-            pstar2 = result[0]
-            ustar2 = result[1]
-            ustar = ustar + blending_factor * (ustar2 - ustar)
-            pstar = pstar + blending_factor * (pstar2 - pstar)
+            pstar = result[0]
+            ustar = result[1]
 
-        # three dimensional velocity (70)
-        vstar = declare('matrix(3)')
-        vstar[0] = ustar * eij[0]
-        vstar[1] = ustar * eij[1]
-        vstar[2] = ustar * eij[2]
+            # blend of two intermediate states
+            if self.hybrid:
+                riemann_solve(
+                    10, rhoj, rhoi, pl, pr, vl, vr, self.gamma,
+                    self.niter, self.tol, result
+                )
+                pstar2 = result[0]
+                ustar2 = result[1]
+                ustar = ustar + blending_factor * (ustar2 - ustar)
+                pstar = pstar + blending_factor * (pstar2 - pstar)
 
-        # velocity accelerations
-        mj = s_m[s_idx]
-        d_au[d_idx] += -mj * pstar * (vij_i * DWI[0] + vij_j * DWJ[0])
-        d_av[d_idx] += -mj * pstar * (vij_i * DWI[1] + vij_j * DWJ[1])
-        d_aw[d_idx] += -mj * pstar * (vij_i * DWI[2] + vij_j * DWJ[2])
+            # three dimensional velocity (70)
+            vstar[0] = ustar * eij[0]
+            vstar[1] = ustar * eij[1]
+            vstar[2] = ustar * eij[2]
 
-        # contribution to the thermal energy term
-        # (85). The contribution due to \dot{x}^*_i will
-        # be added in the integrator.
-        vstardotdwi = vstar[0] * DWI[0] + vstar[1] * DWI[1] + vstar[2] * DWI[2]
-        vstardotdwj = vstar[0] * DWJ[0] + vstar[1] * DWJ[1] + vstar[2] * DWJ[2]
-        d_ae[d_idx] += -mj * pstar * (vij_i * vstardotdwi +
-                                      vij_j * vstardotdwj)
+            # velocity accelerations
+            mj = s_m[s_idx]
+            d_au[d_idx] += -mj * pstar * (vij_i * dwi[0] + vij_j * dwj[0])
+            d_av[d_idx] += -mj * pstar * (vij_i * dwi[1] + vij_j * dwj[1])
+            d_aw[d_idx] += -mj * pstar * (vij_i * dwi[2] + vij_j * dwj[2])
 
-        # artificial thermal conduction terms
-        if self.thermal_conduction:
-            divj = s_div[s_idx]
-            Hj = g1 * hj * csj + g2 * hj * hj * (abs(divj) - divj)
-            Hij = (Hi + Hj) * (d_e[d_idx] - s_e[s_idx])
+            # contribution to the thermal energy term
+            # (85). The contribution due to \dot{x}^*_i will
+            # be added in the integrator.
+            vstardotdwi = (vstar[0] * dwi[0] +
+                           vstar[1] * dwi[1] +
+                           vstar[2] * dwi[2])
+            vstardotdwj = (vstar[0] * dwj[0] +
+                           vstar[1] * dwj[1] +
+                           vstar[2] * dwj[2])
+            d_ae[d_idx] += -mj * pstar * (vij_i * vstardotdwi +
+                                          vij_j * vstardotdwj)
 
-            Hij /= (RHOIJ * (RIJ * RIJ + EPS))
+            # artificial thermal conduction terms
+            if self.thermal_conduction:
+                divj = s_div[s_idx]
+                Hj = g1 * hj * csj + g2 * hj * hj * (abs(divj) - divj)
+                Hij = (Hi + Hj) * (d_e[d_idx] - s_e[s_idx])
 
-            d_ae[d_idx] += mj * Hij * (XIJ[0] * DWIJ[0] + XIJ[1] * DWIJ[1] +
-                                       XIJ[2] * DWIJ[2])
+                Hij /= (rhoij * (rij * rij + eps))
+
+                d_ae[d_idx] += mj * Hij * (xij[0] * dwij[0] +
+                                           xij[1] * dwij[1] +
+                                           xij[2] * dwij[2])
