@@ -1207,7 +1207,7 @@ class GSPHScheme(Scheme):
         self.niter = niter
         self.tol = tol
         self.has_ghosts = has_ghosts
-        self.state_interpolation_choices = {'original', 'weno', 'teno'}
+        self.state_interpolation_choices = {'original', 'weno5wang'}
         self.state_interpolation = state_interpolation
 
     def add_user_options(self, group):
@@ -1294,6 +1294,9 @@ class GSPHScheme(Scheme):
         if kernel is None:
             kernel = Gaussian(dim=self.dim)
 
+        if self.state_interpolation in {'weno5wang'}:
+            kernel.radius_scale *= 4
+
         steppers = {}
         if extra_steppers is not None:
             steppers.update(extra_steppers)
@@ -1325,7 +1328,7 @@ class GSPHScheme(Scheme):
         from pysph.sph.gas_dynamics.boundary_equations import WallBoundary
         from pysph.sph.gas_dynamics.gsph import (
             GSPHGradients, GSPHAcceleration, GSPHUpdateGhostProps,
-            GSPHAccelerationENO
+            GSPHAccelerationWENO5Wang
         )
         equations = []
         # Find the optimal 'h'
@@ -1415,9 +1418,9 @@ class GSPHScheme(Scheme):
                     hybrid=self.hybrid, blend_alpha=self.blend_alpha,
                     gamma=self.gamma, niter=self.niter, tol=self.tol
                 ))
-        else:
+        elif self.state_interpolation == 'weno5wang':
             for fluid in self.fluids:
-                g4.append(GSPHAccelerationENO(
+                g4.append(GSPHAccelerationWENO5Wang(
                     dest=fluid, sources=all_pa, g1=self.g1,
                     g2=self.g2, monotonicity=0,
                     rsolver=self.rsolver, interpolation=0,
@@ -1425,6 +1428,9 @@ class GSPHScheme(Scheme):
                     hybrid=False, blend_alpha=self.blend_alpha,
                     gamma=self.gamma, niter=self.niter, tol=self.tol
                 ))
+        else:
+            raise ValueError("state_interpolation must be one of: "
+                             "%r." % self.state_interpolation_choices)
         equations.append(Group(equations=g4))
         return equations
 

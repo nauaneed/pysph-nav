@@ -541,20 +541,26 @@ class GSPHAcceleration(Equation):
         result[2] = sstar
 
 
-class GSPHAccelerationENO(GSPHAcceleration):
-    """Class to implement the GSPH acclerations.
+class GSPHAccelerationWENO5Wang(GSPHAcceleration):
+    """Class to implement the 5 point WENO GSPH acclerations [Wang2021]_.
+
+        .. [Wang2021] Wang, Ping-Ping, et al. "A new type of WENO
+        scheme in SPH for compressible flows with discontinuities."
+        Computer Methods in Applied Mechanics and Engineering 381 (2021):
+        113770. https://doi.org/10.1016/j.cma.2021.113770
     """
 
     def loop(self):
         pass
 
     def loop_all(self, d_idx, d_m, d_h, d_rho, d_cs, d_div, d_p, d_e, d_grhox,
-             d_grhoy, d_grhoz, d_u, d_v, d_w, d_px, d_py, d_pz, d_ux, d_uy,
-             d_uz, d_vx, d_vy, d_vz, d_wx, d_wy, d_wz, d_au, d_av, d_aw, d_ae,
-             s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
-             s_grhoy, s_grhoz, s_u, s_v, s_w, s_px, s_py, s_pz,
-             s_ux, s_uy, s_uz, s_vx, s_vy, s_vz, s_wx, s_wy, s_wz,
-             dt, t, d_x, d_y, d_z, s_x, s_y, s_z, SPH_KERNEL, NBRS, N_NBRS):
+                 d_grhoy, d_grhoz, d_u, d_v, d_w, d_px, d_py, d_pz, d_ux, d_uy,
+                 d_uz, d_vx, d_vy, d_vz, d_wx, d_wy, d_wz, d_au, d_av, d_aw,
+                 d_ae, s_rho, s_m, s_h, s_cs, s_div, s_p, s_e, s_grhox,
+                 s_grhoy, s_grhoz, s_u, s_v, s_w, s_px, s_py, s_pz,
+                 s_ux, s_uy, s_uz, s_vx, s_vy, s_vz, s_wx, s_wy, s_wz,
+                 dt, t, d_x, d_y, d_z, s_x, s_y, s_z, SPH_KERNEL, NBRS,
+                 N_NBRS):
 
         i = declare('int')
         s_idx = declare('long')
@@ -564,17 +570,26 @@ class GSPHAccelerationENO(GSPHAcceleration):
         result = declare('matrix(2)')
         vstar = declare('matrix(3)')
         dwi, dwj, dwij = declare('matrix(3)', 3)
+
+        ip, iip, ivar, pidx, nidx = declare('int', 5)
+        pp, xip, eip, islr = declare('matrix(3)', 5)
+        rhouvwp = declare('matrix(30)')
+        subphi, beta, w = declare('matrix(3)', 3)
+        phil, phir = declare('matrix(5)', 2)
+
         eps = 1e-8
+
         blending_factor = exp(-self.blend_alpha * t / self.tf)
         g1 = self.g1
         g2 = self.g2
         hi = d_h[d_idx]
+
         for i in range(N_NBRS):
             s_idx = NBRS[i]
             xij[0] = d_x[d_idx] - s_x[s_idx]
             xij[1] = d_y[d_idx] - s_y[s_idx]
             xij[2] = d_z[d_idx] - s_z[s_idx]
-            rij = sqrt(xij[0]*xij[0] + xij[1]*xij[1] + xij[2]*xij[2])
+            rij = sqrt(xij[0] * xij[0] + xij[1] * xij[1] + xij[2] * xij[2])
 
             rhoij = 0.5 * (d_rho[d_idx] + s_rho[s_idx])
             hj = s_h[s_idx]
@@ -602,7 +617,7 @@ class GSPHAccelerationENO(GSPHAcceleration):
                   d_w[d_idx] * eij[2])
 
             Hi = g1 * hi * d_cs[d_idx] + g2 * hi * hi * (
-                        abs(d_div[d_idx]) - d_div[d_idx])
+                    abs(d_div[d_idx]) - d_div[d_idx])
 
             grhoi_dot_eij = (d_grhox[d_idx] * eij[0] +
                              d_grhoy[d_idx] * eij[1] +
@@ -650,13 +665,164 @@ class GSPHAccelerationENO(GSPHAcceleration):
             pi = d_p[d_idx]
             pj = s_p[s_idx]
 
-            # Input to the riemann solver
+            for ip in range(6):
+                # Reconstruction-1: Phantom Points
+                # For x_{i-j} where j = -2 to 3,
+                # ip = i - j + 2 so that index is positive
+                pp[0] = d_x[d_idx] + (ip - 2) * (s_x[s_idx] - d_x[d_idx])
+                pp[1] = d_y[d_idx] + (ip - 2) * (s_y[s_idx] - d_y[d_idx])
+                pp[2] = d_z[d_idx] + (ip - 2) * (s_z[s_idx] - d_z[d_idx])
 
+                # Reconstruction-2: Find the nearest particle to the phantom
+                # point
+                pidx = s_idx
+                prevrsq = INFINITY
+                for iip in range(N_NBRS):
+                    nidx = NBRS[iip]
+                    xip[0] = pp[0] - s_x[nidx]
+                    xip[1] = pp[1] - s_y[nidx]
+                    xip[2] = pp[2] - s_z[nidx]
+                    rsq = xip[0] * xip[0] + xip[1] * xip[1] + xip[2] * xip[2]
+                    if rsq < prevrsq:
+                        pidx = nidx
+                        prevrsq = rsq
+
+                # Reconstruction-3: Estimate variables at phantom point
+                xip[0] = pp[0] - s_x[pidx]
+                xip[1] = pp[1] - s_y[pidx]
+                xip[2] = pp[2] - s_z[pidx]
+
+                delrho = (s_grhox[pidx] * xip[0] +
+                          s_grhoy[pidx] * xip[1] +
+                          s_grhoz[pidx] * xip[2])
+                delp = (s_px[pidx] * xip[0] +
+                        s_py[pidx] * xip[1] +
+                        s_pz[pidx] * xip[2])
+                delx = (xip[0] * s_ux[pidx] +
+                        xip[1] * s_uy[pidx] +
+                        xip[2] * s_uz[pidx])
+                delv = (xip[0] * s_vx[pidx] +
+                        xip[1] * s_vy[pidx] +
+                        xip[2] * s_vz[pidx])
+                delw = (xip[0] * s_wx[pidx] +
+                        xip[1] * s_wy[pidx] +
+                        xip[2] * s_wz[pidx])
+
+                rhouvwp[ip * 5 + 0] = s_rho[pidx] - delrho
+                rhouvwp[ip * 5 + 1] = s_u[pidx] - delx
+                rhouvwp[ip * 5 + 2] = s_v[pidx] - delv
+                rhouvwp[ip * 5 + 3] = s_w[pidx] - delw
+                rhouvwp[ip * 5 + 4] = s_p[pidx] - delp
+
+            for ivar in range(5):
+                # Reconstruction-4: Left substencils
+                subphi[0] = (3.0 * rhouvwp[0 * 5 + ivar] -
+                             10.0 * rhouvwp[1 * 5 + ivar] +
+                             15.0 * rhouvwp[2 * 5 + ivar]) / 8.0
+
+                subphi[1] = (-1.0 * rhouvwp[1 * 5 + ivar] +
+                             6.0 * rhouvwp[2 * 5 + ivar] +
+                             3.0 * rhouvwp[3 * 5 + ivar]) / 8.0
+
+                subphi[2] = (3.0 * rhouvwp[2 * 5 + ivar] +
+                             6.0 * rhouvwp[3 * 5 + ivar] -
+                             1.0 * rhouvwp[4 * 5 + ivar]) / 8.0
+
+                # Reconstruction-5: Left state smoothness indicator
+                islr[0] = (13.0 / 12.0) * pow(rhouvwp[0 * 5 + ivar] -
+                                              2.0 * rhouvwp[1 * 5 + ivar] +
+                                              rhouvwp[2 * 5 + ivar], 2) + \
+                          0.25 * pow(rhouvwp[0 * 5 + ivar] -
+                                     4.0 * rhouvwp[1 * 5 + ivar] +
+                                     3.0 * rhouvwp[2 * 5 + ivar], 2)
+
+                islr[1] = (13.0 / 12.0) * pow(rhouvwp[1 * 5 + ivar] -
+                                              2.0 * rhouvwp[2 * 5 + ivar] +
+                                              rhouvwp[3 * 5 + ivar], 2) + \
+                          0.25 * pow(
+                    rhouvwp[1 * 5 + ivar] - rhouvwp[3 * 5 + ivar], 2)
+
+                islr[2] = (13.0 / 12.0) * pow(rhouvwp[2 * 5 + ivar] -
+                                              2.0 * rhouvwp[3 * 5 + ivar] +
+                                              rhouvwp[4 * 5 + ivar], 2) + \
+                          0.25 * pow(3.0 * rhouvwp[2 * 5 + ivar] -
+                                     4.0 * rhouvwp[3 * 5 + ivar] +
+                                     rhouvwp[4 * 5 + ivar], 2)
+
+                # Reconstruction-5: Non-linear weights of left stencils
+                beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+                beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+                beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+                sumbeta = beta[0] + beta[1] + beta[2]
+
+                w[0] = beta[0] / sumbeta
+                w[1] = beta[1] / sumbeta
+                w[2] = beta[2] / sumbeta
+
+                # Reconstruction-6: Finally, the left state
+                phil[ivar] = (w[0] * subphi[0] +
+                              w[1] * subphi[1] +
+                              w[2] * subphi[2])
+
+                # Reconstruction-7: Right substencils
+                subphi[0] = (3.0 * rhouvwp[5 * 5 + ivar] -
+                             10.0 * rhouvwp[4 * 5 + ivar] +
+                             15.0 * rhouvwp[3 * 5 + ivar]) / 8.0
+
+                subphi[1] = (-1.0 * rhouvwp[4 * 5 + ivar] +
+                             6.0 * rhouvwp[3 * 5 + ivar] +
+                             3.0 * rhouvwp[2 * 5 + ivar]) / 8.0
+
+                subphi[2] = (3.0 * rhouvwp[3 * 5 + ivar] +
+                             6.0 * rhouvwp[2 * 5 + ivar] -
+                             1.0 * rhouvwp[1 * 5 + ivar]) / 8.0
+
+                # Reconstruction-8: Right state smoothness indicator
+                islr[0] = (13.0 / 12.0) * pow(rhouvwp[5 * 5 + ivar] -
+                                              2.0 * rhouvwp[4 * 5 + ivar] +
+                                              rhouvwp[3 * 5 + ivar], 2) + \
+                          0.25 * pow(rhouvwp[5 * 5 + ivar] -
+                                     4.0 * rhouvwp[4 * 5 + ivar] +
+                                     3.0 * rhouvwp[3 * 5 + ivar], 2)
+
+                islr[1] = (13.0 / 12.0) * pow(rhouvwp[4 * 5 + ivar] -
+                                              2.0 * rhouvwp[3 * 5 + ivar] +
+                                              rhouvwp[2 * 5 + ivar], 2) + \
+                          0.25 * pow(
+                    rhouvwp[4 * 5 + ivar] - rhouvwp[2 * 5 + ivar], 2)
+
+                islr[2] = (13.0 / 12.0) * pow(rhouvwp[3 * 5 + ivar] -
+                                              2.0 * rhouvwp[2 * 5 + ivar] +
+                                              rhouvwp[1 * 5 + ivar], 2) + \
+                          0.25 * pow(3.0 * rhouvwp[3 * 5 + ivar] -
+                                     4.0 * rhouvwp[2 * 5 + ivar] +
+                                     rhouvwp[1 * 5 + ivar], 2)
+
+                # Reconstruction-9: Non-linear weights of right stencils
+                beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+                beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+                beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+                sumbeta = beta[0] + beta[1] + beta[2]
+
+                w[0] = beta[0] / sumbeta
+                w[1] = beta[1] / sumbeta
+                w[2] = beta[2] / sumbeta
+
+                # Reconstruction-10: Finally, the right state
+                phir[ivar] = (w[0] * subphi[0] +
+                              w[1] * subphi[1] +
+                              w[2] * subphi[2])
+
+            # Input to the riemann solver
             # left and right density
-            rhol = rhoj + 0.5 * rsj * rij * (1.0 -
-                                             csj * dt * sij + 2.0 * sstar)
-            rhor = rhoi - 0.5 * rsi * rij * (1.0 -
-                                             csi * dt * sij + 2.0 * sstar)
+            rhor = phil[0]
+            rhol = phir[0]
+            # rhol = rhoj + 0.5 * rsj * rij * (1.0 -
+            #                                  csj * dt * sij + 2.0 * sstar)
+            # rhor = rhoi - 0.5 * rsi * rij * (1.0 -
+            #                                  csi * dt * sij + 2.0 * sstar)
 
             # corrected density
             if rhol < 0:
@@ -665,8 +831,10 @@ class GSPHAccelerationENO(GSPHAcceleration):
                 rhor = rhoi
 
             # left and right pressure
-            pl = pj + 0.5 * psj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
-            pr = pi - 0.5 * psi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
+            pr = phil[4]
+            pl = phir[4]
+            # pl = pj + 0.5 * psj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
+            # pr = pi - 0.5 * psi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
 
             # corrected pressure
             if pl < 0:
@@ -675,10 +843,10 @@ class GSPHAccelerationENO(GSPHAcceleration):
                 pr = pi
 
             # left and right velocity
-            ul = vl + 0.5 * vsj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
-            ur = vr - 0.5 * vsi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
-
-            # Intermediate state from the Riemann solver
+            ur = phil[1] * eij[0] + phil[2] * eij[1] + phil[3] * eij[2]
+            ul = phir[1] * eij[0] + phir[2] * eij[1] + phir[3] * eij[2]
+            # ul1 = vl + 0.5 * vsj * rij * (1.0 - csj * dt * sij + 2.0 * sstar)
+            # ur1 = vr - 0.5 * vsi * rij * (1.0 - csi * dt * sij + 2.0 * sstar)
 
             riemann_solve(
                 self.rsolver, rhol, rhor, pl, pr, ul, ur,
