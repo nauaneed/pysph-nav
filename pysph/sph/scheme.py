@@ -1146,7 +1146,8 @@ class GSPHScheme(Scheme):
                  g2=0.0, rsolver=2, interpolation=1, monotonicity=1,
                  interface_zero=True, hybrid=False, blend_alpha=5.0, tf=1.0,
                  niter=20, tol=1e-6, has_ghosts=False,
-                 state_interpolation='original'):
+                 state_interpolation='original',
+                 interpolation_variable='primitive'):
         """
         Parameters
         ----------
@@ -1188,6 +1189,8 @@ class GSPHScheme(Scheme):
             if ghost particles (either mirror or periodic) is used
         state_interpolation: str
             Interpolation scheme for state variables.
+        interpolation_variable: str
+            Interpolation variable for non-oscillatory reconstruction.
         """
         self.fluids = fluids
         self.solids = solids
@@ -1208,7 +1211,9 @@ class GSPHScheme(Scheme):
         self.tol = tol
         self.has_ghosts = has_ghosts
         self.state_interpolation_choices = {'original', 'weno5wang'}
+        self.interpolation_variable_choices = {'primitive', 'characteristic'}
         self.state_interpolation = state_interpolation
+        self.interpolation_variable=interpolation_variable
 
     def add_user_options(self, group):
         group.add_argument(
@@ -1264,11 +1269,18 @@ class GSPHScheme(Scheme):
             help="Use the hybrid scheme.",
             default=None
         )
+        group.add_argument(
+            "--interpolation-variable", action="store",
+            dest="interpolation_variable", default=None,
+            choices=self.interpolation_variable_choices,
+            help="Variables to use for non-oscillatory reconstruction: "
+                 "%s." % self.interpolation_variable_choices
+        )
 
     def consume_user_options(self, options):
         vars = ['gamma', 'g1', 'g2', 'rsolver', 'interpolation',
                 'monotonicity', 'interface_zero', 'hybrid',
-                'blend_alpha', 'state_interpolation']
+                'blend_alpha', 'state_interpolation', 'interpolation_variable']
         data = dict((var, self._smart_getattr(options, var))
                     for var in vars)
         self.configure(**data)
@@ -1426,7 +1438,8 @@ class GSPHScheme(Scheme):
                     rsolver=self.rsolver, interpolation=0,
                     interface_zero=True,
                     hybrid=False, blend_alpha=self.blend_alpha,
-                    gamma=self.gamma, niter=self.niter, tol=self.tol
+                    gamma=self.gamma, niter=self.niter, tol=self.tol,
+                    interpolation_variable=self.interpolation_variable
                 ))
         else:
             raise ValueError("state_interpolation must be one of: "

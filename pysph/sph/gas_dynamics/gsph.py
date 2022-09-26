@@ -550,6 +550,17 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
         113770. https://doi.org/10.1016/j.cma.2021.113770
     """
 
+    def __init__(self, dest, sources, g1=0.0, g2=0.0,
+                 monotonicity=0, rsolver=Exact,
+                 interpolation=Linear, interface_zero=True, hybrid=False,
+                 blend_alpha=5.0, tf=1.0,
+                 gamma=1.4, niter=20, tol=1e-6,
+                 interpolation_variable='primitive'):
+        self.interpolation_variable = interpolation_variable
+        super().__init__(dest, sources, g1, g2, monotonicity, rsolver,
+                         interpolation, interface_zero, hybrid,
+                         blend_alpha, tf, gamma, niter, tol)
+
     def loop(self):
         pass
 
