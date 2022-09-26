@@ -560,6 +560,8 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
         super().__init__(dest, sources, g1, g2, monotonicity, rsolver,
                          interpolation, interface_zero, hybrid,
                          blend_alpha, tf, gamma, niter, tol)
+    def _get_helpers_(self):
+        return HELPERS + [monotonicity_min, sgn, weno5reconstruct]
 
     def loop(self):
         pass
@@ -583,9 +585,8 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
         dwi, dwj, dwij = declare('matrix(3)', 3)
 
         ip, iip, ivar, pidx, nidx = declare('int', 5)
-        pp, xip, eip, islr = declare('matrix(3)', 5)
+        pp, xip, eip = declare('matrix(3)', 3)
         rhouvwp = declare('matrix(30)')
-        subphi, beta, w = declare('matrix(3)', 3)
         phil, phir = declare('matrix(5)', 2)
 
         eps = 1e-8
@@ -725,106 +726,7 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
                 rhouvwp[ip * 5 + 3] = s_w[pidx] - delw
                 rhouvwp[ip * 5 + 4] = s_p[pidx] - delp
 
-            for ivar in range(5):
-                # Reconstruction-4: Left substencils
-                subphi[0] = (3.0 * rhouvwp[0 * 5 + ivar] -
-                             10.0 * rhouvwp[1 * 5 + ivar] +
-                             15.0 * rhouvwp[2 * 5 + ivar]) / 8.0
-
-                subphi[1] = (-1.0 * rhouvwp[1 * 5 + ivar] +
-                             6.0 * rhouvwp[2 * 5 + ivar] +
-                             3.0 * rhouvwp[3 * 5 + ivar]) / 8.0
-
-                subphi[2] = (3.0 * rhouvwp[2 * 5 + ivar] +
-                             6.0 * rhouvwp[3 * 5 + ivar] -
-                             1.0 * rhouvwp[4 * 5 + ivar]) / 8.0
-
-                # Reconstruction-5: Left state smoothness indicator
-                islr[0] = (13.0 / 12.0) * pow(rhouvwp[0 * 5 + ivar] -
-                                              2.0 * rhouvwp[1 * 5 + ivar] +
-                                              rhouvwp[2 * 5 + ivar], 2) + \
-                          0.25 * pow(rhouvwp[0 * 5 + ivar] -
-                                     4.0 * rhouvwp[1 * 5 + ivar] +
-                                     3.0 * rhouvwp[2 * 5 + ivar], 2)
-
-                islr[1] = (13.0 / 12.0) * pow(rhouvwp[1 * 5 + ivar] -
-                                              2.0 * rhouvwp[2 * 5 + ivar] +
-                                              rhouvwp[3 * 5 + ivar], 2) + \
-                          0.25 * pow(
-                    rhouvwp[1 * 5 + ivar] - rhouvwp[3 * 5 + ivar], 2)
-
-                islr[2] = (13.0 / 12.0) * pow(rhouvwp[2 * 5 + ivar] -
-                                              2.0 * rhouvwp[3 * 5 + ivar] +
-                                              rhouvwp[4 * 5 + ivar], 2) + \
-                          0.25 * pow(3.0 * rhouvwp[2 * 5 + ivar] -
-                                     4.0 * rhouvwp[3 * 5 + ivar] +
-                                     rhouvwp[4 * 5 + ivar], 2)
-
-                # Reconstruction-5: Non-linear weights of left stencils
-                beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
-                beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
-                beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
-
-                sumbeta = beta[0] + beta[1] + beta[2]
-
-                w[0] = beta[0] / sumbeta
-                w[1] = beta[1] / sumbeta
-                w[2] = beta[2] / sumbeta
-
-                # Reconstruction-6: Finally, the left state
-                phil[ivar] = (w[0] * subphi[0] +
-                              w[1] * subphi[1] +
-                              w[2] * subphi[2])
-
-                # Reconstruction-7: Right substencils
-                subphi[0] = (3.0 * rhouvwp[5 * 5 + ivar] -
-                             10.0 * rhouvwp[4 * 5 + ivar] +
-                             15.0 * rhouvwp[3 * 5 + ivar]) / 8.0
-
-                subphi[1] = (-1.0 * rhouvwp[4 * 5 + ivar] +
-                             6.0 * rhouvwp[3 * 5 + ivar] +
-                             3.0 * rhouvwp[2 * 5 + ivar]) / 8.0
-
-                subphi[2] = (3.0 * rhouvwp[3 * 5 + ivar] +
-                             6.0 * rhouvwp[2 * 5 + ivar] -
-                             1.0 * rhouvwp[1 * 5 + ivar]) / 8.0
-
-                # Reconstruction-8: Right state smoothness indicator
-                islr[0] = (13.0 / 12.0) * pow(rhouvwp[5 * 5 + ivar] -
-                                              2.0 * rhouvwp[4 * 5 + ivar] +
-                                              rhouvwp[3 * 5 + ivar], 2) + \
-                          0.25 * pow(rhouvwp[5 * 5 + ivar] -
-                                     4.0 * rhouvwp[4 * 5 + ivar] +
-                                     3.0 * rhouvwp[3 * 5 + ivar], 2)
-
-                islr[1] = (13.0 / 12.0) * pow(rhouvwp[4 * 5 + ivar] -
-                                              2.0 * rhouvwp[3 * 5 + ivar] +
-                                              rhouvwp[2 * 5 + ivar], 2) + \
-                          0.25 * pow(
-                    rhouvwp[4 * 5 + ivar] - rhouvwp[2 * 5 + ivar], 2)
-
-                islr[2] = (13.0 / 12.0) * pow(rhouvwp[3 * 5 + ivar] -
-                                              2.0 * rhouvwp[2 * 5 + ivar] +
-                                              rhouvwp[1 * 5 + ivar], 2) + \
-                          0.25 * pow(3.0 * rhouvwp[3 * 5 + ivar] -
-                                     4.0 * rhouvwp[2 * 5 + ivar] +
-                                     rhouvwp[1 * 5 + ivar], 2)
-
-                # Reconstruction-9: Non-linear weights of right stencils
-                beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
-                beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
-                beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
-
-                sumbeta = beta[0] + beta[1] + beta[2]
-
-                w[0] = beta[0] / sumbeta
-                w[1] = beta[1] / sumbeta
-                w[2] = beta[2] / sumbeta
-
-                # Reconstruction-10: Finally, the right state
-                phir[ivar] = (w[0] * subphi[0] +
-                              w[1] * subphi[1] +
-                              w[2] * subphi[2])
+            weno5reconstruct(phil, phir, rhouvwp)
 
             # Input to the riemann solver
             # left and right density
@@ -911,3 +813,107 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
                 d_ae[d_idx] += mj * Hij * (xij[0] * dwij[0] +
                                            xij[1] * dwij[1] +
                                            xij[2] * dwij[2])
+
+def weno5reconstruct(phil=[0.0, 0.0], phir=[0.0, 0.0], rhouvwp=[0.0, 0.0]):
+    subphi, beta, w, islr = declare('matrix(3)', 4)
+    ivar = declare('int')
+    for ivar in range(5):
+        # Reconstruction-4: Left substencils
+        subphi[0] = (3.0 * rhouvwp[0 * 5 + ivar] -
+                     10.0 * rhouvwp[1 * 5 + ivar] +
+                     15.0 * rhouvwp[2 * 5 + ivar]) / 8.0
+
+        subphi[1] = (-1.0 * rhouvwp[1 * 5 + ivar] +
+                     6.0 * rhouvwp[2 * 5 + ivar] +
+                     3.0 * rhouvwp[3 * 5 + ivar]) / 8.0
+
+        subphi[2] = (3.0 * rhouvwp[2 * 5 + ivar] +
+                     6.0 * rhouvwp[3 * 5 + ivar] -
+                     1.0 * rhouvwp[4 * 5 + ivar]) / 8.0
+
+        # Reconstruction-5: Left state smoothness indicator
+        islr[0] = (13.0 / 12.0) * pow(rhouvwp[0 * 5 + ivar] -
+                                      2.0 * rhouvwp[1 * 5 + ivar] +
+                                      rhouvwp[2 * 5 + ivar], 2) + \
+                  0.25 * pow(rhouvwp[0 * 5 + ivar] -
+                             4.0 * rhouvwp[1 * 5 + ivar] +
+                             3.0 * rhouvwp[2 * 5 + ivar], 2)
+
+        islr[1] = (13.0 / 12.0) * pow(rhouvwp[1 * 5 + ivar] -
+                                      2.0 * rhouvwp[2 * 5 + ivar] +
+                                      rhouvwp[3 * 5 + ivar], 2) + \
+                  0.25 * pow(
+            rhouvwp[1 * 5 + ivar] - rhouvwp[3 * 5 + ivar], 2)
+
+        islr[2] = (13.0 / 12.0) * pow(rhouvwp[2 * 5 + ivar] -
+                                      2.0 * rhouvwp[3 * 5 + ivar] +
+                                      rhouvwp[4 * 5 + ivar], 2) + \
+                  0.25 * pow(3.0 * rhouvwp[2 * 5 + ivar] -
+                             4.0 * rhouvwp[3 * 5 + ivar] +
+                             rhouvwp[4 * 5 + ivar], 2)
+
+        # Reconstruction-5: Non-linear weights of left stencils
+        beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+        beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+        beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+        sumbeta = beta[0] + beta[1] + beta[2]
+
+        w[0] = beta[0] / sumbeta
+        w[1] = beta[1] / sumbeta
+        w[2] = beta[2] / sumbeta
+
+        # Reconstruction-6: Finally, the left state
+        phil[ivar] = (w[0] * subphi[0] +
+                      w[1] * subphi[1] +
+                      w[2] * subphi[2])
+
+        # Reconstruction-7: Right substencils
+        subphi[0] = (3.0 * rhouvwp[5 * 5 + ivar] -
+                     10.0 * rhouvwp[4 * 5 + ivar] +
+                     15.0 * rhouvwp[3 * 5 + ivar]) / 8.0
+
+        subphi[1] = (-1.0 * rhouvwp[4 * 5 + ivar] +
+                     6.0 * rhouvwp[3 * 5 + ivar] +
+                     3.0 * rhouvwp[2 * 5 + ivar]) / 8.0
+
+        subphi[2] = (3.0 * rhouvwp[3 * 5 + ivar] +
+                     6.0 * rhouvwp[2 * 5 + ivar] -
+                     1.0 * rhouvwp[1 * 5 + ivar]) / 8.0
+
+        # Reconstruction-8: Right state smoothness indicator
+        islr[0] = (13.0 / 12.0) * pow(rhouvwp[5 * 5 + ivar] -
+                                      2.0 * rhouvwp[4 * 5 + ivar] +
+                                      rhouvwp[3 * 5 + ivar], 2) + \
+                  0.25 * pow(rhouvwp[5 * 5 + ivar] -
+                             4.0 * rhouvwp[4 * 5 + ivar] +
+                             3.0 * rhouvwp[3 * 5 + ivar], 2)
+
+        islr[1] = (13.0 / 12.0) * pow(rhouvwp[4 * 5 + ivar] -
+                                      2.0 * rhouvwp[3 * 5 + ivar] +
+                                      rhouvwp[2 * 5 + ivar], 2) + \
+                  0.25 * pow(
+            rhouvwp[4 * 5 + ivar] - rhouvwp[2 * 5 + ivar], 2)
+
+        islr[2] = (13.0 / 12.0) * pow(rhouvwp[3 * 5 + ivar] -
+                                      2.0 * rhouvwp[2 * 5 + ivar] +
+                                      rhouvwp[1 * 5 + ivar], 2) + \
+                  0.25 * pow(3.0 * rhouvwp[3 * 5 + ivar] -
+                             4.0 * rhouvwp[2 * 5 + ivar] +
+                             rhouvwp[1 * 5 + ivar], 2)
+
+        # Reconstruction-9: Non-linear weights of right stencils
+        beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+        beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+        beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+        sumbeta = beta[0] + beta[1] + beta[2]
+
+        w[0] = beta[0] / sumbeta
+        w[1] = beta[1] / sumbeta
+        w[2] = beta[2] / sumbeta
+
+        # Reconstruction-10: Finally, the right state
+        phir[ivar] = (w[0] * subphi[0] +
+                      w[1] * subphi[1] +
+                      w[2] * subphi[2])
