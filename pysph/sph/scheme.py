@@ -1147,7 +1147,7 @@ class GSPHScheme(Scheme):
                  interface_zero=True, hybrid=False, blend_alpha=5.0, tf=1.0,
                  niter=20, tol=1e-6, has_ghosts=False,
                  state_interpolation='original',
-                 interpolation_variable='primitive'):
+                 decomposition_method='nd'):
         """
         Parameters
         ----------
@@ -1211,9 +1211,9 @@ class GSPHScheme(Scheme):
         self.tol = tol
         self.has_ghosts = has_ghosts
         self.state_interpolation_choices = {'original', 'weno5wang'}
-        self.interpolation_variable_choices = {'primitive', 'characteristic'}
+        self.decomposition_method_choices = {'nd', 'prcd', 'pncd', 'crcd', 'cncd'}
         self.state_interpolation = state_interpolation
-        self.interpolation_variable=interpolation_variable
+        self.decomposition_method = decomposition_method
 
     def add_user_options(self, group):
         group.add_argument(
@@ -1270,17 +1270,21 @@ class GSPHScheme(Scheme):
             default=None
         )
         group.add_argument(
-            "--interpolation-variable", action="store",
-            dest="interpolation_variable", default=None,
-            choices=self.interpolation_variable_choices,
-            help="Variables to use for non-oscillatory reconstruction: "
-                 "%s." % self.interpolation_variable_choices
+            "--decomposition_method", action="store",
+            dest="decomposition_method", default=None,
+            choices=self.decomposition_method_choices,
+            help="Decomposition for weno reconstruction: { "
+                 "nd: no decomposition use primitive variables,"
+                 "prcd: primitive rotated characteristic decomposition,"
+                 "crcd: conservative rotated characteristic decomposition,"
+                 "pncd: primitive normal characteristic decomposition,"
+                 "cncd: conservative normal characteristic decomposition}"
         )
 
     def consume_user_options(self, options):
         vars = ['gamma', 'g1', 'g2', 'rsolver', 'interpolation',
                 'monotonicity', 'interface_zero', 'hybrid',
-                'blend_alpha', 'state_interpolation', 'interpolation_variable']
+                'blend_alpha', 'state_interpolation', 'decomposition_method']
         data = dict((var, self._smart_getattr(options, var))
                     for var in vars)
         self.configure(**data)
@@ -1439,7 +1443,7 @@ class GSPHScheme(Scheme):
                     interface_zero=True,
                     hybrid=False, blend_alpha=self.blend_alpha,
                     gamma=self.gamma, niter=self.niter, tol=self.tol,
-                    interpolation_variable=self.interpolation_variable
+                    decomposition_method=self.decomposition_method
                 ))
         else:
             raise ValueError("state_interpolation must be one of: "

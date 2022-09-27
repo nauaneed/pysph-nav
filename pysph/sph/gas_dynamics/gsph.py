@@ -1,9 +1,14 @@
-from math import exp
+from math import exp, sqrt
+
 from compyle.api import declare
+from pysph.base.particle_array import get_ghost_tag
+
 from pysph.sph.equation import Equation
+from pysph.sph.gas_dynamics.characteristic_decomposition import (
+    characteristic_decomposition, rotated_characteristic_decomposition)
 from pysph.sph.gas_dynamics.riemann_solver import (HELPERS, riemann_solve,
                                                    printf)
-from pysph.base.particle_array import get_ghost_tag
+from pysph.sph.wc.linalg import mat_mult, mat_vec_mult
 
 # Constants
 GHOST_TAG = get_ghost_tag()
@@ -106,6 +111,7 @@ class GSPHUpdateGhostProps(Equation):
     from real particle to ghost particles
 
     """
+
     def __init__(self, dest, sources=None):
         super(GSPHUpdateGhostProps, self).__init__(dest, sources)
         assert GHOST_TAG == 2
@@ -159,6 +165,7 @@ class GSPHAcceleration(Equation):
     Murante et al.
 
     """
+
     def __init__(self, dest, sources, g1=0.0, g2=0.0,
                  monotonicity=0, rsolver=Exact,
                  interpolation=Linear, interface_zero=True, hybrid=False,
@@ -555,13 +562,17 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
                  interpolation=Linear, interface_zero=True, hybrid=False,
                  blend_alpha=5.0, tf=1.0,
                  gamma=1.4, niter=20, tol=1e-6,
-                 interpolation_variable='primitive'):
-        self.interpolation_variable = interpolation_variable
+                 decomposition_method='primitive'):
+        self.decomposition_method = decomposition_method
         super().__init__(dest, sources, g1, g2, monotonicity, rsolver,
                          interpolation, interface_zero, hybrid,
                          blend_alpha, tf, gamma, niter, tol)
+
     def _get_helpers_(self):
-        return HELPERS + [monotonicity_min, sgn, weno5reconstruct]
+        return HELPERS + [monotonicity_min, sgn, weno5_primitive_reconstruct,
+                          weno5_ncharacteristic_reconstruct, mat_mult,
+                          mat_vec_mult, characteristic_decomposition,
+                          rotated_characteristic_decomposition]
 
     def loop(self):
         pass
@@ -726,7 +737,12 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
                 rhouvwp[ip * 5 + 3] = s_w[pidx] - delw
                 rhouvwp[ip * 5 + 4] = s_p[pidx] - delp
 
-            weno5reconstruct(phil, phir, rhouvwp)
+            if self.decomposition_method == 'nd':
+                weno5_primitive_reconstruct(phil, phir, rhouvwp)
+            elif self.decomposition_method == 'pncd':
+                weno5_ncharacteristic_reconstruct(phil, phir, rhouvwp,
+                                                  d_cs[d_idx], s_cs[s_idx],
+                                                  eij)
 
             # Input to the riemann solver
             # left and right density
@@ -814,7 +830,8 @@ class GSPHAccelerationWENO5Wang(GSPHAcceleration):
                                            xij[1] * dwij[1] +
                                            xij[2] * dwij[2])
 
-def weno5reconstruct(phil=[0.0, 0.0], phir=[0.0, 0.0], rhouvwp=[0.0, 0.0]):
+
+def weno5_primitive_reconstruct(phil=[0.0, 0.0], phir=[0.0, 0.0], rhouvwp=[0.0, 0.0]):
     subphi, beta, w, islr = declare('matrix(3)', 4)
     ivar = declare('int')
     for ivar in range(5):
@@ -917,3 +934,138 @@ def weno5reconstruct(phil=[0.0, 0.0], phir=[0.0, 0.0], rhouvwp=[0.0, 0.0]):
         phir[ivar] = (w[0] * subphi[0] +
                       w[1] * subphi[1] +
                       w[2] * subphi[2])
+
+
+def weno5_ncharacteristic_reconstruct(phil=[0.0, 0.0], phir=[0.0, 0.0],
+                                      q=[0.0, 0.0], ci=0.0, cj=0.0,
+                                      eij=[0.0, 0.0]):
+    subphi, beta, w, islr = declare('matrix(3)', 4)
+    ivar, ip = declare('int')
+    qlocl, qlocr, invKrotl, invKrotr, Krotl, Krotr = declare('matrix(25)', 6)
+    recon_phil, recon_phir, ql, qr = declare('matrix(5)', 4)
+    uclambdal, uclambdar = declare('matrix(5)', 2)
+
+    i, j, k, n = declare('int', 4)
+
+    for ivar in range(5):
+        ql[ivar] = q[ip * 5 + ivar]
+        qr[ivar] = q[(ip + 1) * 5 + ivar]
+
+    rotated_characteristic_decomposition(ql, ci, invKrotl, uclambdal,
+                                         Krotl, eij)
+    rotated_characteristic_decomposition(qr, cj, invKrotr, uclambdar,
+                                         Krotr, eij)
+    n = 5
+    for i in range(n):
+        for k in range(n):
+            sl = 0.0
+            sr = 0.0
+            for j in range(n):
+                sl += invKrotl[n * i + j] * q[n * k + j]
+                sr += invKrotr[n * i + j] * q[n * (k + 1) + j]
+            qlocl[n * k + i] = sl
+            qlocr[n * k + i] = sr
+
+    for ivar in range(5):
+        # Reconstruction-4: Left substencils
+        subphi[0] = (3.0 * qlocl[0 * 5 + ivar] -
+                     10.0 * qlocl[1 * 5 + ivar] +
+                     15.0 * qlocl[2 * 5 + ivar]) / 8.0
+
+        subphi[1] = (-1.0 * qlocl[1 * 5 + ivar] +
+                     6.0 * qlocl[2 * 5 + ivar] +
+                     3.0 * qlocl[3 * 5 + ivar]) / 8.0
+
+        subphi[2] = (3.0 * qlocl[2 * 5 + ivar] +
+                     6.0 * qlocl[3 * 5 + ivar] -
+                     1.0 * qlocl[4 * 5 + ivar]) / 8.0
+
+        # Reconstruction-5: Left state smoothness indicator
+        islr[0] = (13.0 / 12.0) * pow(qlocl[0 * 5 + ivar] -
+                                      2.0 * qlocl[1 * 5 + ivar] +
+                                      qlocl[2 * 5 + ivar], 2) + \
+                  0.25 * pow(qlocl[0 * 5 + ivar] -
+                             4.0 * qlocl[1 * 5 + ivar] +
+                             3.0 * qlocl[2 * 5 + ivar], 2)
+
+        islr[1] = (13.0 / 12.0) * pow(qlocl[1 * 5 + ivar] -
+                                      2.0 * qlocl[2 * 5 + ivar] +
+                                      qlocl[3 * 5 + ivar], 2) + \
+                  0.25 * pow(
+            qlocl[1 * 5 + ivar] - qlocl[3 * 5 + ivar], 2)
+
+        islr[2] = (13.0 / 12.0) * pow(qlocl[2 * 5 + ivar] -
+                                      2.0 * qlocl[3 * 5 + ivar] +
+                                      qlocl[4 * 5 + ivar], 2) + \
+                  0.25 * pow(3.0 * qlocl[2 * 5 + ivar] -
+                             4.0 * qlocl[3 * 5 + ivar] +
+                             qlocl[4 * 5 + ivar], 2)
+
+        # Reconstruction-5: Non-linear weights of left stencils
+        beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+        beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+        beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+        sumbeta = beta[0] + beta[1] + beta[2]
+
+        w[0] = beta[0] / sumbeta
+        w[1] = beta[1] / sumbeta
+        w[2] = beta[2] / sumbeta
+
+        # Reconstruction-6: Finally, the left state
+        recon_phil[ivar] = (w[0] * subphi[0] +
+                            w[1] * subphi[1] +
+                            w[2] * subphi[2])
+
+        # Reconstruction-7: Right substencils
+        subphi[0] = (3.0 * qlocr[4 * 5 + ivar] -
+                     10.0 * qlocr[3 * 5 + ivar] +
+                     15.0 * qlocr[2 * 5 + ivar]) / 8.0
+
+        subphi[1] = (-1.0 * qlocr[3 * 5 + ivar] +
+                     6.0 * qlocr[2 * 5 + ivar] +
+                     3.0 * qlocr[1 * 5 + ivar]) / 8.0
+
+        subphi[2] = (3.0 * qlocr[2 * 5 + ivar] +
+                     6.0 * qlocr[1 * 5 + ivar] -
+                     1.0 * qlocr[0 * 5 + ivar]) / 8.0
+
+        # Reconstruction-8: Right state smoothness indicator
+        islr[0] = (13.0 / 12.0) * pow(qlocr[4 * 5 + ivar] -
+                                      2.0 * qlocr[3 * 5 + ivar] +
+                                      qlocr[2 * 5 + ivar], 2) + \
+                  0.25 * pow(qlocr[4 * 5 + ivar] -
+                             4.0 * qlocr[3 * 5 + ivar] +
+                             3.0 * qlocr[2 * 5 + ivar], 2)
+
+        islr[1] = (13.0 / 12.0) * pow(qlocr[3 * 5 + ivar] -
+                                      2.0 * qlocr[2 * 5 + ivar] +
+                                      qlocr[1 * 5 + ivar], 2) + \
+                  0.25 * pow(
+            qlocr[3 * 5 + ivar] - qlocr[1 * 5 + ivar], 2)
+
+        islr[2] = (13.0 / 12.0) * pow(qlocr[2 * 5 + ivar] -
+                                      2.0 * qlocr[1 * 5 + ivar] +
+                                      qlocr[0 * 5 + ivar], 2) + \
+                  0.25 * pow(3.0 * qlocr[2 * 5 + ivar] -
+                             4.0 * qlocr[1 * 5 + ivar] +
+                             qlocr[0 * 5 + ivar], 2)
+
+        # Reconstruction-9: Non-linear weights of right stencils
+        beta[0] = (1.0 / 16.0) / pow(1e-6 + islr[0], 4)
+        beta[1] = (5.0 / 8.0) / pow(1e-6 + islr[1], 4)
+        beta[2] = (5.0 / 16.0) / pow(1e-6 + islr[2], 4)
+
+        sumbeta = beta[0] + beta[1] + beta[2]
+
+        w[0] = beta[0] / sumbeta
+        w[1] = beta[1] / sumbeta
+        w[2] = beta[2] / sumbeta
+
+        # Reconstruction-10: Finally, the right state
+        recon_phir[ivar] = (w[0] * subphi[0] +
+                            w[1] * subphi[1] +
+                            w[2] * subphi[2])
+
+        mat_vec_mult(Krotl, recon_phil, 5, phil)
+        mat_vec_mult(Krotr, recon_phir, 5, phir)
