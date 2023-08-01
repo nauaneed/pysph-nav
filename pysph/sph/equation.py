@@ -89,9 +89,9 @@ def get_array_names(symbols):
     a set of destination array names.
     """
     src_arrays = set(x for x in symbols
-                     if x.startswith('s_') and x != 's_idx')
+                     if x.startswith('s_') and not x.startswith('s_idx'))
     dest_arrays = set(x for x in symbols
-                      if x.startswith('d_') and x != 'd_idx')
+                      if x.startswith('d_') and not x.startswith('d_idx'))
     return src_arrays, dest_arrays
 
 
@@ -294,6 +294,20 @@ def precomputed_symbols():
 
     c.GHIJ = BasicCodeBlock(code="GHIJ = GRADH(XIJ, RIJ, HIJ)", GHIJ=0.0)
 
+    c.s_idx1 = BasicCodeBlock(code="s_idx1 = s_idx * d_dim[0]", s_idx1=0)
+    c.s_idx2 = BasicCodeBlock(code="s_idx2 = s_idx * d_dim[1]", s_idx2=0)
+    c.s_idx3 = BasicCodeBlock(code="s_idx3 = s_idx * d_dim[2]", s_idx3=0)
+
+    return c
+
+def outer_precomputed_symbols():
+    """Return a collection of predefined symbols that can be used equations
+    outside the loop.
+    """
+    c = Context()
+    c.d_idx1 = BasicCodeBlock(code="d_idx1 = d_idx * d_dim[0]", d_idx1=0)
+    c.d_idx2 = BasicCodeBlock(code="d_idx2 = d_idx * d_dim[1]", d_idx2=0)
+    c.d_idx3 = BasicCodeBlock(code="d_idx3 = d_idx * d_dim[2]", d_idx3=0)
     return c
 
 
@@ -352,9 +366,16 @@ def get_predefined_types(precomp):
               'dst': KnownType('object'),
               'NBRS': KnownType('unsigned int*'),
               'N_NBRS': KnownType('int'),
-              'src': KnownType('ParticleArrayWrapper')}
+              'src': KnownType('ParticleArrayWrapper'),
+              'd_idx1': KnownType('long'),
+              'd_idx2': KnownType('long'),
+              'd_idx3': KnownType('long'),
+              's_idx1': KnownType('long'),
+              's_idx2': KnownType('long'),
+              's_idx3': KnownType('long')}
     for sym, value in precomp.items():
-        result[sym] = value.context[sym]
+        if sym not in result.keys():
+            result[sym] = value.context[sym]
     return result
 
 
@@ -453,6 +474,7 @@ class Group(object):
     """
 
     pre_comp = precomputed_symbols()
+    outer_pre_comp = outer_precomputed_symbols()
 
     def __init__(self, equations, real=True, update_nnps=False, iterate=False,
                  max_iterations=1, min_iterations=0, pre=None, post=None,
@@ -586,6 +608,45 @@ class Group(object):
             if hasattr(equation, kind):
                 return True
 
+    def _setup_dloop_precomputed(self):
+        """Get the precomputed symbols for this group of equations.
+        """
+        # Calculate the precomputed symbols for this equation.
+        all_args = set()
+        methods = ('initialize', 'initialize_pair', 'loop', 'loop_all',
+                        'post_loop')
+        for equation in self.equations:
+            for meth in methods:
+                if hasattr(equation, meth):
+                    args = getfullargspec(getattr(equation,meth)).args
+                    all_args.update(args)
+        all_args.discard('self')
+
+        pre = self.outer_pre_comp
+        precomputed = dict((s, pre[s]) for s in all_args if s in pre)
+
+        # Now find the precomputed symbols in the pre-computed symbols.
+        done = False
+        found_precomp = set(precomputed.keys())
+        while not done:
+            done = True
+            all_new = set()
+            for sym in found_precomp:
+                code_block = pre[sym]
+                new = set([s for s in code_block.symbols
+                           if s in pre and s not in precomputed])
+                all_new.update(new)
+            if len(all_new) > 0:
+                done = False
+                for s in all_new:
+                    precomputed[s] = pre[s]
+            found_precomp = all_new
+        self.dloop_precomputed = precomputed
+        # Update the context.
+        context = self.context
+        for p, cb in precomputed.items():
+            context[p] = cb.context[p]
+
     def _setup_precomputed(self):
         """Get the precomputed symbols for this group of equations.
         """
@@ -631,6 +692,7 @@ class Group(object):
         self.context = Context()
         if not self.has_subgroups:
             self._setup_precomputed()
+            self._setup_dloop_precomputed()
 
     def get_array_names(self, recompute=False):
         """Returns two sets of array names, the first being source_arrays
@@ -646,6 +708,10 @@ class Group(object):
             dest_arrays.update(d)
 
         for cb in self.precomputed.values():
+            src_arrays.update(cb.src_arrays)
+            dest_arrays.update(cb.dest_arrays)
+
+        for cb in self.dloop_precomputed.values():
             src_arrays.update(cb.src_arrays)
             dest_arrays.update(cb.dest_arrays)
 
@@ -776,6 +842,28 @@ class CythonGroup(Group):
         if len(code) > 0:
             code.append('')
         return preamble + '\n'.join(code)
+
+    def _get_dloop_precomputed_code(self, kinds):
+        for kind in kinds:
+            assert kind in ('initialize', 'initialize_pair', 'loop',
+                            'loop_all', 'post_loop')
+        # We assume here that precomputed quantities are only relevant
+        # for loops and not post_loops and initialization.
+        pre = []
+        args = []
+        for eq in self.equations:
+            for kind in kinds:
+                meth = getattr(eq, kind, None)
+                if meth is not None:
+                    args.extend(getfullargspec(meth).args)
+
+        if args:
+            for p, cb in self.dloop_precomputed.items():
+                if p in args:
+                    pre.append(cb.code.strip())
+            return '\n'.join(pre)
+        else:
+            return ''
 
     def _set_kernel(self, code, kernel):
         if kernel is not None:

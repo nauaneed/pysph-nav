@@ -40,7 +40,8 @@ ${indent(all_eqs.get_py_initialize_code(), 0)}
 % if all_eqs.has_initialize():
 # Initialization for destination ${dest}.
 _prof = ProfileContext("AccelerationEval.${group.name}_d_${dest}.initialize")
-for d_idx in ${helper.get_parallel_range(group)}:
+for d_idx in ${helper.get_parallel_range(group)}:\
+    ${indent(all_eqs._get_dloop_precomputed_code(['initialize']), 1)}\
     ${indent(all_eqs.get_initialize_code(helper.object.kernel), 1)}
 _prof.stop()
 % endif
@@ -51,7 +52,8 @@ _prof.stop()
 % if eqs_with_no_source.has_loop():
 # SPH Equations with no sources.
 _prof = ProfileContext("AccelerationEval.${group.name}_d_${dest}_no_sources.loop")
-for d_idx in ${helper.get_parallel_range(group)}:
+for d_idx in ${helper.get_parallel_range(group)}:\
+    ${indent(eqs_with_no_source._get_dloop_precomputed_code(['loop']), 1)}\
     ${indent(eqs_with_no_source.get_loop_code(helper.object.kernel), 1)}
 _prof.stop()
 % endif
@@ -72,7 +74,8 @@ src_array_index = src.index
 
 % if eq_group.has_initialize_pair():
 _prof = ProfileContext("AccelerationEval.${group.name}_d_${dest}_s_${source}.initialize_pair")
-for d_idx in ${helper.get_parallel_range(group)}:
+for d_idx in ${helper.get_parallel_range(group)}:\
+    ${indent(eq_group._get_dloop_precomputed_code(['initialize_pair']), 1)}\
     ${indent(eq_group.get_initialize_pair_code(helper.object.kernel), 1)}
 _prof.stop()
 % endif
@@ -87,7 +90,8 @@ nnps.set_context(src_array_index, dst_array_index)
 ${helper.get_parallel_block()}
     thread_id = threadid()
     ${indent(eq_group.get_variable_array_setup(), 1)}
-    for d_idx in ${helper.get_parallel_range(group, nogil=False)}:
+    for d_idx in ${helper.get_parallel_range(group, nogil=False)}:\
+        ${indent(eq_group._get_dloop_precomputed_code(['loop', 'loop_all']), 2)}\
         ###############################################################
         ## Find and iterate over neighbors.
         ###############################################################
@@ -117,6 +121,7 @@ _prof.stop()
 # Post loop for destination ${dest}.
 _prof = ProfileContext("AccelerationEval.${group.name}_d_${dest}.post_loop")
 for d_idx in ${helper.get_parallel_range(group)}:
+    ${indent(all_eqs._get_dloop_precomputed_code(['post_loop']), 1)}\
     ${indent(all_eqs.get_post_loop_code(helper.object.kernel), 1)}
 _prof.stop()
 % endif
