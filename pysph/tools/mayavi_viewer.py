@@ -309,7 +309,7 @@ class ParticleArrayHelper(HasTraits):
                     desc='the opacity of the particles')
 
     # Show the time of the simulation on screen.
-    show_time = Bool(False, desc='if the current time is displayed')
+   show_time = Bool(False, desc='if the current time is displayed')
 
     # Edit the colors and legends
     edit_colors = Button('Edit colors ...')
@@ -636,7 +636,8 @@ class PythonShellView(HasTraits):
     ns = Dict()
     view = View(
         Item('ns', editor=ShellEditor(), show_label=False),
-        id='pysph.mayavi_viewer.python_shell_view'
+        id='pysph.mayavi_viewer.python_shell_view',
+        resizable=True
     )
 
 
@@ -701,7 +702,7 @@ class MayaviViewer(HasTraits):
     # This is len(files) - 1.
     _n_files = Int(0)
     _low = Int(0)
-    
+
     ## Playback Control Buttons
     play_pause_label = Property(observe="play", desc='change label of the '
                                                      'play button to pause if '
@@ -713,7 +714,7 @@ class MayaviViewer(HasTraits):
     go2last = Button(label='⏭', desc='Last File')
     _pbcbw = -50  # playback control button width
     _pbcbh = -30  # playback control button height
-    
+
     ########################################
     # Timer traits.
     timer = Instance(Timer)
@@ -761,13 +762,13 @@ class MayaviViewer(HasTraits):
                                 Item('go2first',
                                      enabled_when='file_count > _low',
                                      show_label=False,
-                                     width=_pbcbw, 
+                                     width=_pbcbw,
                                      height=_pbcbh,
                                      tooltip='First File'),
                                 Item('go2prev',
                                      enabled_when='file_count > _low',
                                      show_label=False,
-                                     width=_pbcbw, 
+                                     width=_pbcbw,
                                      height=_pbcbh,
                                      tooltip='Previous File'),
                                 Item('play_pause_button',
