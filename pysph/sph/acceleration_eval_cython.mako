@@ -157,6 +157,7 @@ from libc.stdio cimport printf
 from libc.math cimport *
 from libc.math cimport fabs as abs
 cimport numpy
+numpy.import_array()
 import numpy
 from cython import address
 % if not helper.config.use_openmp:
