@@ -44,8 +44,8 @@ jobs:
           echo "import os" >> ~/.compyle/config.py
           echo "os.environ['CC'] = '$(brew --prefix llvm@15)/bin/clang'" >> ~/.compyle/config.py
           echo "os.environ['CXX'] = '$(brew --prefix llvm@15)/bin/clang++'" >> ~/.compyle/config.py
-          export CPPFLAGS="-I$(brew --prefix libomp)/include"
-          export LDFLAGS="-L$(brew --prefix libomp)/lib"
+          export CPPFLAGS="-I$(brew --prefix llvm@15)/include"
+          export LDFLAGS="-L$(brew --prefix llvm@15)/lib"
           python -c "import os; OMP_CFLAGS=os.environ.get('CPPFLAGS').split(', '); print(f'{OMP_CFLAGS=}')" >> ~/.compyle/config.py
           python -c "import os; OMP_LINK=os.environ.get('LDFLAGS').split(', '); print(f'{OMP_LINK=}')" >> ~/.compyle/config.py
         if: ${{ runner.os == 'macOS' }}
