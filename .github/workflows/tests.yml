@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies on Linux/MacOS
         run: |
           conda info
-          pip install pyopencl[pocl]
+          conda install -c conda-forge pocl pyopencl
           python -c 'import pyopencl as cl'
         if: ${{ runner.os != 'Windows' }}
       - name: Setup compyle config on MacOS to use openmp enabled clang from homebrew
