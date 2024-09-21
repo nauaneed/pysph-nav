@@ -11,12 +11,12 @@ cdef extern from "math.h":
 cdef extern from "z_order.h":
     ctypedef unsigned long long uint64_t
     ctypedef unsigned int uint32_t
-    uint64_t get_key(uint64_t i, uint64_t j, uint64_t k) nogil
+    inline uint64_t get_key(uint64_t i, uint64_t j, uint64_t k) nogil
 
     cdef cppclass CompareSortWrapper:
-        CompareSortWrapper() except + nogil
+        CompareSortWrapper() nogil except +
         CompareSortWrapper(uint32_t* current_pids, uint64_t* current_keys,
-                int length) except + nogil
+                int length) nogil except +
         inline void compare_sort() nogil
 
 ctypedef map[uint64_t, pair[uint32_t, uint32_t]] key_to_idx_t
