@@ -127,7 +127,7 @@ def _get_openmp_flags():
         return ['/openmp'], []
     elif sys.platform == 'darwin':
         if (os.environ.get('CC') is not None and
-           os.environ.get('CXX') is not None):
+            os.environ.get('CXX') is not None):
             return ['-fopenmp'], ['-fopenmp']
         else:
             return ['-Xpreprocessor', '-fopenmp'], ['-lomp']
@@ -681,7 +681,7 @@ def setup_package():
 
     # The requirements.
     install_requires = [
-        'numpy', 'mako', 'cyarray', 'compyle>=0.8', 'Cython<3.0',
+        'numpy', 'mako', 'cyarray', 'compyle>=0.8', 'Cython>=0.20',
         'setuptools>=42.0.0', 'pytools', 'Beaker'
     ]
     tests_require = ['pytest>=3.0', 'h5py', 'vtk']
