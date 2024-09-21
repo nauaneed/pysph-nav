@@ -74,4 +74,4 @@ jobs:
           key: ${{ runner.os }}-${{ steps.month.outputs.month }}
       - name: Run tests
         run: |
-          python -m pytest -v pysph/base/tests/test_nnps.py
+          python -m pytest -v -m 'not slow or slow'
