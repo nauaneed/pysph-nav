@@ -343,7 +343,7 @@ cdef class CellIndexingNNPS(NNPS):
         self.J = <u_int> (1 + log2(ceil((xmax[0] - xmin[0])/self.cell_size)))
         self.K = <u_int> (1 + log2(ceil((xmax[1] - xmin[1])/self.cell_size)))
 
-        for i in range(self.narray):
+        for i in range(self.narrays):
             free(self.keys[i])
             del self.key_indices[i]
 
