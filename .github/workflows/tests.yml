@@ -58,8 +58,6 @@ jobs:
           python -m pip install numpy h5py cython
           python -m pip install https://github.com/nauaneed/cyarray/zipball/bump-cython-old
           python -m pip install https://github.com/pypr/compyle/zipball/master
-          python -m pip uninstall -y numpy
-          python -m pip install oldest-supported-numpy
           python -m pip install -r requirements.txt -r requirements-test.txt
           python setup.py develop
           python -m pip list
