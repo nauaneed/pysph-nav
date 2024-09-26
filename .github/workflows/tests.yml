@@ -54,11 +54,13 @@ jobs:
       - name: Install dependencies
         run: |
           conda info
-          conda install -c conda-forge numpy cython h5py
           python -m pip install --upgrade pip setuptools wheel
+          python -m pip install numpy cython h5py
           python -m pip install https://github.com/pypr/cyarray/zipball/master
           python -m pip install https://github.com/pypr/compyle/zipball/master
           python -m pip install -r requirements.txt -r requirements-test.txt
+          python -m pip uninstall -y numpy
+          python -m pip install oldest-supported-numpy
           python setup.py develop
           python -m pip list
       # Cache auto-generated code. Cache key changes every month.
