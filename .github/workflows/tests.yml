@@ -59,7 +59,7 @@ jobs:
           python -m pip install https://github.com/nauaneed/cyarray/zipball/bump-cython-old
           python -m pip install https://github.com/pypr/compyle/zipball/master
           python -m pip install -r requirements.txt -r requirements-test.txt
-          python setup.py develop
+          python -m pip install -e . --no-build-isolation
           python -m pip list
       # Cache auto-generated code. Cache key changes every month.
       # Thanks https://stackoverflow.com/a/60942437
