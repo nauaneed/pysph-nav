@@ -15,7 +15,7 @@ cdef class CubicSpline:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -56,13 +56,13 @@ cdef class CubicSpline:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 2. / 3
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -81,7 +81,7 @@ cdef class CubicSpline:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -117,7 +117,7 @@ cdef class CubicSpline:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -148,7 +148,7 @@ cdef class CubicSpline:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class CubicSplineWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -192,7 +192,7 @@ cdef class WendlandQuintic:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -221,13 +221,13 @@ cdef class WendlandQuintic:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 0.5
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -247,7 +247,7 @@ cdef class WendlandQuintic:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -278,7 +278,7 @@ cdef class WendlandQuintic:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -306,7 +306,7 @@ cdef class WendlandQuintic:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -350,7 +350,7 @@ cdef class Gaussian:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -377,7 +377,7 @@ cdef class Gaussian:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         # The inflection point is at q=1/sqrt(2)
         # the deltap values for some standard kernels
         # have been tabulated in sec 3.2 of
@@ -387,7 +387,7 @@ cdef class Gaussian:
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -407,7 +407,7 @@ cdef class Gaussian:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -436,7 +436,7 @@ cdef class Gaussian:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -461,7 +461,7 @@ cdef class Gaussian:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class GaussianWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -505,7 +505,7 @@ cdef class QuinticSpline:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -551,7 +551,7 @@ cdef class QuinticSpline:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         # The inflection points for the polynomial are obtained as
         # http://www.wolframalpha.com/input/?i=%28%283-x%29%5E5+-+6*%282-x%29%5E5+%2B+15*%281-x%29%5E5%29%27%27
         # the only permissible value is taken
@@ -560,7 +560,7 @@ cdef class QuinticSpline:
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -580,7 +580,7 @@ cdef class QuinticSpline:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -633,7 +633,7 @@ cdef class QuinticSpline:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -675,7 +675,7 @@ cdef class QuinticSpline:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class QuinticSplineWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -719,7 +719,7 @@ cdef class SuperGaussian:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -748,7 +748,7 @@ cdef class SuperGaussian:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         # Found inflection point using sympy.
         if self.dim == 1:
             return 0.584540507426389
@@ -760,7 +760,7 @@ cdef class SuperGaussian:
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -779,7 +779,7 @@ cdef class SuperGaussian:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double d
         cdef double fac
         cdef double h1
@@ -810,7 +810,7 @@ cdef class SuperGaussian:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -837,7 +837,7 @@ cdef class SuperGaussian:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class SuperGaussianWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -881,7 +881,7 @@ cdef class WendlandQuinticC4:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -911,13 +911,13 @@ cdef class WendlandQuinticC4:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 0.47114274
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -937,7 +937,7 @@ cdef class WendlandQuinticC4:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -970,7 +970,7 @@ cdef class WendlandQuinticC4:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -999,7 +999,7 @@ cdef class WendlandQuinticC4:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticC4Wrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -1043,7 +1043,7 @@ cdef class WendlandQuinticC6:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1073,13 +1073,13 @@ cdef class WendlandQuinticC6:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 0.4305720757
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -1098,7 +1098,7 @@ cdef class WendlandQuinticC6:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -1131,7 +1131,7 @@ cdef class WendlandQuinticC6:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1160,7 +1160,7 @@ cdef class WendlandQuinticC6:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticC6Wrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -1204,7 +1204,7 @@ cdef class WendlandQuinticC2_1D:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1233,13 +1233,13 @@ cdef class WendlandQuinticC2_1D:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 2.0/3
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -1259,7 +1259,7 @@ cdef class WendlandQuinticC2_1D:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -1290,7 +1290,7 @@ cdef class WendlandQuinticC2_1D:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1318,7 +1318,7 @@ cdef class WendlandQuinticC2_1D:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticC2_1DWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -1362,7 +1362,7 @@ cdef class WendlandQuinticC4_1D:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1391,13 +1391,13 @@ cdef class WendlandQuinticC4_1D:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 0.55195628
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -1417,7 +1417,7 @@ cdef class WendlandQuinticC4_1D:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -1448,7 +1448,7 @@ cdef class WendlandQuinticC4_1D:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1476,7 +1476,7 @@ cdef class WendlandQuinticC4_1D:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticC4_1DWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
@@ -1520,7 +1520,7 @@ cdef class WendlandQuinticC6_1D:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    cdef inline double dwdq(self, double rij, double h):
+    cdef inline double dwdq(self, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1550,13 +1550,13 @@ cdef class WendlandQuinticC6_1D:
     cpdef double py_dwdq(self, double rij, double h):
         return self.dwdq(rij, h)
 
-    cdef inline double get_deltap(self):
+    cdef inline double get_deltap(self) noexcept nogil:
         return 0.47996698
 
     cpdef double py_get_deltap(self):
         return self.get_deltap()
 
-    cdef inline void gradient(self, double* xij, double rij, double h, double* grad):
+    cdef inline void gradient(self, double* xij, double rij, double h, double* grad) noexcept nogil:
         cdef double h1
         cdef double tmp
         cdef double wdash
@@ -1575,7 +1575,7 @@ cdef class WendlandQuinticC6_1D:
     cpdef py_gradient(self, double[:] xij, double rij, double h, double[:] grad):
         self.gradient(&xij[0], rij, h, &grad[0])
 
-    cdef inline double gradient_h(self, double* xij, double rij, double h):
+    cdef inline double gradient_h(self, double* xij, double rij, double h) noexcept nogil:
         cdef double dw
         cdef double fac
         cdef double h1
@@ -1608,7 +1608,7 @@ cdef class WendlandQuinticC6_1D:
     cpdef double py_gradient_h(self, double[:] xij, double rij, double h):
         return self.gradient_h(&xij[0], rij, h)
 
-    cdef inline double kernel(self, double* xij, double rij, double h):
+    cdef inline double kernel(self, double* xij, double rij, double h) noexcept nogil:
         cdef double fac
         cdef double h1
         cdef double q
@@ -1637,7 +1637,7 @@ cdef class WendlandQuinticC6_1D:
     cpdef double py_kernel(self, double[:] xij, double rij, double h):
         return self.kernel(&xij[0], rij, h)
 
-
+ 
 
 cdef class WendlandQuinticC6_1DWrapper:
     """Reasonably high-performance convenience wrapper for Kernels.
