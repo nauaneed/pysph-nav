@@ -95,6 +95,45 @@ class SedovPointExplosion(Application):
             dt=dt, tf=tf, adaptive_timestep=False, pfreq=25
         )
 
+    def post_process(self, info_filename):
+        # super().post_process(info_filename)
+        self.read_info(info_filename)
+        from pathlib import Path
+        from pysph.solver.utils import load
+        outdir = Path(self.output_dir)
+
+
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            from matplotlib import pyplot as plt
+            from exactpack.solvers.sedov.sedov import Sedov
+        except ImportError:
+            print("Post processing requires matplotlib and exactpack")
+            return
+
+        if self.rank > 0 or len(self.output_files) == 0:
+            return
+
+        npts = 2001
+        rvec = numpy.linspace(0.0, 0.5, npts)
+        solver = Sedov(geometry=2, eblast=1.0, gamma=gamma)
+        solution = solver(r=rvec, t=tf)
+
+        pa = load(self.output_files[-1])["arrays"]["fluid"]
+
+
+        solution.plot('density', color='k', label='Exact')
+        r = numpy.sqrt(pa.x**2 + pa.y**2)
+        plt.scatter(r, pa.rho, label='Computed')
+
+        # plt.xlim(0.0, 1.2)
+        # plt.ylim(0.0, 6.5)
+        plt.xlabel('Position (cm)')
+        plt.ylabel('Density (g/cc)')
+        plt.grid(True)
+        plt.savefig(outdir.joinpath('sedov_density.png'))
+
 
 if __name__ == '__main__':
     app = SedovPointExplosion()
