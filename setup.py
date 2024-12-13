@@ -21,7 +21,6 @@ ZOLTAN = '/path/to_zoltan'  # looks inside this for $ZOLTAN/include/, lib/
 # Not needed if using ZOLTAN
 ZOLTAN_INCLUDE = 'path/include'  # path to zoltan.h
 ZOLTAN_LIBRARY = 'path/lib'  # path to libzoltan.a
-
 '''
 
 import os
